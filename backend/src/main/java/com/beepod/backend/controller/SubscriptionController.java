@@ -28,6 +28,11 @@ public class SubscriptionController {
     public List<Subscription> getBySpace(@PathVariable Long spaceId) {
         return subscriptionRepository.findBySpaceId(spaceId);
     }
+    // GET all subscriptions
+@GetMapping
+public List<Subscription> getAllSubscriptions() {
+    return subscriptionRepository.findAll();
+}
 
     // GET all subscriptions for a student
     @GetMapping("/student/{studentId}")
