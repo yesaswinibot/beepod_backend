@@ -19,9 +19,9 @@ function OwnerDashboard() {
 
   async function loadData() {
     const [spacesData, studentsData, subsData] = await Promise.all([
-      fetch('http://localhost:8080/api/spaces').then(r => r.json()),
-      fetch('http://localhost:8080/api/students').then(r => r.json()),
-      fetch('http://localhost:8080/api/subscriptions/space/1').then(r => r.json())
+      fetch('https://beepodbackend-production.up.railway.app/api/spaces').then(r => r.json()),
+      fetch('https://beepodbackend-production.up.railway.app/api/students').then(r => r.json()),
+      fetch('https://beepodbackend-production.up.railway.app/api/subscriptions/space/1').then(r => r.json())
     ])
     setSpaces(spacesData)
     setStudents(studentsData)
@@ -31,11 +31,11 @@ function OwnerDashboard() {
 
   async function addStudent() {
     setAddError('')
-    const allStudents = await fetch('http://localhost:8080/api/students').then(r => r.json())
+    const allStudents = await fetch('https://beepodbackend-production.up.railway.app/api/students').then(r => r.json())
     const student = allStudents.find(s => s.phone === newStudentPhone)
     if(!student) { setAddError('No student found with this phone. Ask them to register on Beepod first.'); return }
     const sub = { spaceId: spaces[0]?.id, studentId: student.id, seatNumber: newSeatNumber, monthlyFee: parseInt(newMonthlyFee), validFrom: newValidFrom, validTill: newValidTill, paymentStatus: newPaymentStatus }
-    const res = await fetch('http://localhost:8080/api/subscriptions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sub) })
+    const res = await fetch('https://beepodbackend-production.up.railway.app/api/subscriptions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sub) })
     if(res.ok) { setShowAddStudent(false); setNewStudentPhone(''); setNewSeatNumber(''); setNewMonthlyFee(''); setNewValidFrom(''); setNewValidTill(''); setNewPaymentStatus('unpaid'); loadData() }
   }
 

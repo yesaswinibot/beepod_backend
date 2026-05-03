@@ -1,101 +1,107 @@
 import { useState, useEffect } from 'react'
 
 function Students() {
-  const [students, setStudents] = useState([])
+  const [subscriptions, setSubscriptions] = useState([])
+  const [spaces, setSpaces] = useState([])
   const [loading, setLoading] = useState(true)
-  const [name, setName] = useState('')
-  const [phone, setPhone] = useState('')
-  const [seatNumber, setSeatNumber] = useState('')
-  const [paymentStatus, setPaymentStatus] = useState('unpaid')
+  const name = localStorage.getItem('name')
 
   useEffect(() => {
-    fetchStudents()
+    loadData()
   }, [])
 
-  function fetchStudents() {
-    fetch('http://localhost:8080/api/students')
-      .then(res => res.json())
-      .then(data => {
-        setStudents(data)
-        setLoading(false)
-      })
+  async function loadData() {
+    const [spacesData, subsData] = await Promise.all([
+      fetch('https://beepodbackend-production.up.railway.app/api/spaces').then(r => r.json()),
+      fetch('https://beepodbackend-production.up.railway.app/api/subscriptions').then(r => r.json())
+    ])
+    setSpaces(spacesData)
+    setSubscriptions(subsData)
+    setLoading(false)
   }
 
-  function addStudent() {
-    if(!name || !phone) {
-      alert('Please enter name and phone')
-      return
-    }
-    fetch('http://localhost:8080/api/students', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, phone, seatNumber, paymentStatus })
-    })
-    .then(res => res.json())
-    .then(() => {
-      setName('')
-      setPhone('')
-      setSeatNumber('')
-      setPaymentStatus('unpaid')
-      fetchStudents()
-    })
-  }
+  if(loading) return <p style={{ padding: '2rem' }}>Loading profile...</p>
 
   return (
-    <div style={{ padding: '2rem', fontFamily: 'sans-serif', maxWidth: '600px', margin: '0 auto', backgroundColor: '#FFFBEB', minHeight: '100vh' }}>
-      <h1 style={{ color: '#D97706' }}>Beepod — Students</h1>
+    <div style={{ fontFamily: 'sans-serif', backgroundColor: '#FFFBEB', minHeight: '100vh', padding: '2rem' }}>
 
-      <div style={{ background: 'white', border: '1px solid #E5E3DC', borderRadius: '12px', padding: '1.5rem', marginBottom: '2rem' }}>
-        <h2 style={{ marginTop: 0, fontSize: '16px', color: '#1C1917' }}>Add New Student</h2>
-        <input
-          placeholder="Full name"
-          value={name}
-          onChange={e => setName(e.target.value)}
-          style={{ width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '8px', border: '1px solid #E5E3DC', boxSizing: 'border-box', fontSize: '14px', color: '#1C1917', backgroundColor: 'white' }}
-        />
-        <input
-          placeholder="Phone number"
-          value={phone}
-          onChange={e => setPhone(e.target.value)}
-          style={{ width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '8px', border: '1px solid #E5E3DC', boxSizing: 'border-box', fontSize: '14px', color: '#1C1917', backgroundColor: 'white' }}
-        />
-        <input
-          placeholder="Seat number"
-          value={seatNumber}
-          onChange={e => setSeatNumber(e.target.value)}
-          style={{ width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '8px', border: '1px solid #E5E3DC', boxSizing: 'border-box', fontSize: '14px', color: '#1C1917', backgroundColor: 'white' }}
-        />
-        <select
-          value={paymentStatus}
-          onChange={e => setPaymentStatus(e.target.value)}
-          style={{ width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '8px', border: '1px solid #E5E3DC', boxSizing: 'border-box', fontSize: '14px', color: '#1C1917', backgroundColor: 'white' }}
-        >
-          <option value="unpaid">Unpaid</option>
-          <option value="paid">Paid</option>
-        </select>
-        <button
-          onClick={addStudent}
-          style={{ width: '100%', padding: '12px', background: '#D97706', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', fontSize: '15px' }}
-        >
-          Add Student
-        </button>
+      {/* PROFILE HEADER */}
+      <div style={{ background: '#1C1917', borderRadius: '16px', padding: '1.5rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', fontWeight: '800', color: 'white', flexShrink: 0 }}>
+          {name?.charAt(0).toUpperCase()}
+        </div>
+        <div>
+          <div style={{ color: 'white', fontWeight: '700', fontSize: '18px' }}>{name}</div>
+          <div style={{ color: '#78716C', fontSize: '13px' }}>Student · Beepod Member</div>
+        </div>
       </div>
 
-      <p style={{ color: '#78716C' }}>{students.length} students</p>
-      {loading ? <p>Loading...</p> : students.map(student => (
-        <div key={student.id} style={{ background: 'white', border: '1px solid #E5E3DC', borderRadius: '10px', padding: '1rem', marginBottom: '1rem' }}>
-          <h3 style={{ margin: 0, color: '#1C1917' }}>{student.name}</h3>
-          <p style={{ color: '#78716C', margin: '4px 0' }}>📞 {student.phone}</p>
-          <p style={{ color: '#78716C', margin: '4px 0' }}>🪑 Seat: {student.seatNumber}</p>
-          <span style={{
-            background: student.paymentStatus === 'paid' ? '#DCFCE7' : '#FEF2F2',
-            color: student.paymentStatus === 'paid' ? '#16A34A' : '#DC2626',
-            padding: '2px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '600'
-          }}>
-            {student.paymentStatus}
-          </span>
+      {/* ACTIVE MEMBERSHIPS */}
+      <h2 style={{ fontSize: '16px', color: '#1C1917', marginBottom: '1rem' }}>My Memberships</h2>
+
+      {subscriptions.length === 0 ? (
+        <div style={{ background: 'white', border: '1px solid #E5E3DC', borderRadius: '12px', padding: '2rem', textAlign: 'center' }}>
+          <div style={{ fontSize: '32px', marginBottom: '0.5rem' }}>📚</div>
+          <div style={{ fontWeight: '600', color: '#1C1917', marginBottom: '4px' }}>No active memberships</div>
+          <div style={{ fontSize: '13px', color: '#78716C' }}>Visit a study room and ask the owner to add you on Beepod</div>
         </div>
-      ))}
+      ) : subscriptions.map(sub => {
+        const space = spaces.find(s => s.id === sub.spaceId)
+        const isExpired = new Date(sub.validTill) < new Date()
+        const isExpiring = !isExpired && (() => {
+          const validTill = new Date(sub.validTill)
+          const sevenDays = new Date()
+          sevenDays.setDate(sevenDays.getDate() + 7)
+          return validTill <= sevenDays
+        })()
+
+        return (
+          <div key={sub.id} style={{ background: 'white', border: `1px solid ${isExpired ? '#FECACA' : isExpiring ? '#FAC775' : '#E5E3DC'}`, borderRadius: '14px', padding: '1.25rem', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+              <div>
+                <div style={{ fontWeight: '700', color: '#1C1917', fontSize: '16px' }}>{space?.name || 'Study Room'}</div>
+                <div style={{ fontSize: '12px', color: '#78716C' }}>📍 {space?.address}</div>
+              </div>
+              <span style={{ background: isExpired ? '#FEF2F2' : isExpiring ? '#FFF7ED' : '#F0FDF4', color: isExpired ? '#DC2626' : isExpiring ? '#92400E' : '#16A34A', padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600', flexShrink: 0 }}>
+                {isExpired ? 'Expired' : isExpiring ? 'Expiring Soon' : 'Active'}
+              </span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <div style={{ background: '#FFFBEB', borderRadius: '8px', padding: '8px 12px' }}>
+                <div style={{ fontSize: '10px', color: '#A8A29E', marginBottom: '2px' }}>SEAT</div>
+                <div style={{ fontWeight: '700', color: '#1C1917', fontSize: '14px' }}>
+                  {sub.seatNumber || 'Not assigned'}
+                </div>
+              </div>
+              <div style={{ background: '#FFFBEB', borderRadius: '8px', padding: '8px 12px' }}>
+                <div style={{ fontSize: '10px', color: '#A8A29E', marginBottom: '2px' }}>VALID TILL</div>
+                <div style={{ fontWeight: '700', color: isExpired ? '#DC2626' : '#1C1917', fontSize: '14px' }}>
+                  {sub.validTill}
+                </div>
+              </div>
+              <div style={{ background: '#FFFBEB', borderRadius: '8px', padding: '8px 12px' }}>
+                <div style={{ fontSize: '10px', color: '#A8A29E', marginBottom: '2px' }}>MONTHLY FEE</div>
+                <div style={{ fontWeight: '700', color: '#D97706', fontSize: '14px' }}>
+                  ₹{sub.monthlyFee}
+                </div>
+              </div>
+              <div style={{ background: '#FFFBEB', borderRadius: '8px', padding: '8px 12px' }}>
+                <div style={{ fontSize: '10px', color: '#A8A29E', marginBottom: '2px' }}>PAYMENT</div>
+                <div style={{ fontWeight: '700', color: sub.paymentStatus === 'paid' ? '#16A34A' : '#DC2626', fontSize: '14px' }}>
+                  {sub.paymentStatus === 'paid' ? 'Paid ✓' : 'Unpaid'}
+                </div>
+              </div>
+            </div>
+
+            {space?.amenities && (
+              <div style={{ marginTop: '10px', fontSize: '12px', color: '#78716C' }}>
+                🏠 {space.amenities}
+              </div>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }

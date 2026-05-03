@@ -5,7 +5,7 @@ function Spaces() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('http://localhost:8080/api/spaces')
+    fetch('https://beepodbackend-production.up.railway.app/api/spaces')
       .then(res => res.json())
       .then(data => {
         setSpaces(data)
