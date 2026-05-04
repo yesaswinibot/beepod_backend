@@ -14,7 +14,7 @@ public class CorsConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/api/**")
-                        .allowedOrigins("http://localhost:5173")
+                        .allowedOrigins("http://localhost:5173", "https://mellow-syrniki-7f8970.netlify.app")
                         .allowedMethods("GET", "POST", "PUT", "DELETE");
             }
         };
