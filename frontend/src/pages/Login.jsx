@@ -15,8 +15,8 @@ function Login({ onLogin }) {
     setError('')
 
     const url = isRegister
-      ? 'http://localhost:8080/api/auth/register'
-      : 'http://localhost:8080/api/auth/login'
+      ? 'https://beepodbackend-production.up.railway.app/api/auth/register'
+      : 'https://beepodbackend-production.up.railway.app/api/auth/login'
 
     const body = isRegister
       ? { name, email, password, role, phone }

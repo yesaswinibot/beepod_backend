@@ -5,6 +5,7 @@ import Students from './pages/Students'
 import Spaces from './pages/Spaces'
 import OwnerDashboard from './pages/OwnerDashboard'
 import Login from './pages/Login'
+import FindRooms from './pages/FindRooms'
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token'))
@@ -48,6 +49,11 @@ function App() {
           style={{ background: 'none', border: '1px solid #3C3835', color: '#78716C', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}
         >
           Logout
+          <a href="/find-rooms" style={{ textDecoration: 'none', color: 'inherit' }}>
+  <button style={{ padding: '10px 20px', background: '#D97706', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', marginRight: '10px' }}>
+    Find Rooms
+  </button>
+</a>
         </button>
       </nav>
 
@@ -56,6 +62,7 @@ function App() {
         <Route path="/spaces" element={<Spaces />} />
         <Route path="/students" element={<Students />} />
         <Route path="/owner" element={role === 'owner' ? <OwnerDashboard /> : <Navigate to="/" />} />
+        <Route path="/find-rooms" element={<FindRooms />} />
       </Routes>
     </BrowserRouter>
   )

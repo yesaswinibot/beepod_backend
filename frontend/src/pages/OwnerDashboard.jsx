@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 
+const API = 'https://beepodbackend-production.up.railway.app'
+
 function OwnerDashboard() {
   const [spaces, setSpaces] = useState([])
   const [students, setStudents] = useState([])
@@ -8,6 +10,7 @@ function OwnerDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [showAddStudent, setShowAddStudent] = useState(false)
   const [newStudentPhone, setNewStudentPhone] = useState('')
+  const [newStudentName, setNewStudentName] = useState('')
   const [newSeatNumber, setNewSeatNumber] = useState('')
   const [newMonthlyFee, setNewMonthlyFee] = useState('')
   const [newValidFrom, setNewValidFrom] = useState('')
@@ -19,9 +22,9 @@ function OwnerDashboard() {
 
   async function loadData() {
     const [spacesData, studentsData, subsData] = await Promise.all([
-      fetch('https://beepodbackend-production.up.railway.app/api/spaces').then(r => r.json()),
-      fetch('https://beepodbackend-production.up.railway.app/api/students').then(r => r.json()),
-      fetch('https://beepodbackend-production.up.railway.app/api/subscriptions/space/1').then(r => r.json())
+      fetch(`${API}/api/spaces`).then(r => r.json()),
+      fetch(`${API}/api/students`).then(r => r.json()),
+      fetch(`${API}/api/subscriptions/space/1`).then(r => r.json())
     ])
     setSpaces(spacesData)
     setStudents(studentsData)
@@ -31,12 +34,50 @@ function OwnerDashboard() {
 
   async function addStudent() {
     setAddError('')
-    const allStudents = await fetch('https://beepodbackend-production.up.railway.app/api/students').then(r => r.json())
-    const student = allStudents.find(s => s.phone === newStudentPhone)
-    if(!student) { setAddError('No student found with this phone. Ask them to register on Beepod first.'); return }
-    const sub = { spaceId: spaces[0]?.id, studentId: student.id, seatNumber: newSeatNumber, monthlyFee: parseInt(newMonthlyFee), validFrom: newValidFrom, validTill: newValidTill, paymentStatus: newPaymentStatus }
-    const res = await fetch('https://beepodbackend-production.up.railway.app/api/subscriptions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sub) })
-    if(res.ok) { setShowAddStudent(false); setNewStudentPhone(''); setNewSeatNumber(''); setNewMonthlyFee(''); setNewValidFrom(''); setNewValidTill(''); setNewPaymentStatus('unpaid'); loadData() }
+    if (!newStudentPhone) { setAddError('Phone number is required.'); return }
+
+    const allStudents = await fetch(`${API}/api/students`).then(r => r.json())
+    let student = allStudents.find(s => s.phone === newStudentPhone)
+
+    if (!student) {
+      const createRes = await fetch(`${API}/api/students`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: newStudentPhone, name: newStudentName || newStudentPhone })
+      })
+      if (!createRes.ok) { setAddError('Failed to create student. Try again.'); return }
+      student = await createRes.json()
+    }
+
+    const sub = {
+      spaceId: spaces[0]?.id,
+      studentId: student.id,
+      seatNumber: newSeatNumber,
+      monthlyFee: parseInt(newMonthlyFee),
+      validFrom: newValidFrom,
+      validTill: newValidTill,
+      paymentStatus: newPaymentStatus
+    }
+
+    const res = await fetch(`${API}/api/subscriptions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(sub)
+    })
+
+    if (res.ok) {
+      setShowAddStudent(false)
+      setNewStudentPhone('')
+      setNewStudentName('')
+      setNewSeatNumber('')
+      setNewMonthlyFee('')
+      setNewValidFrom('')
+      setNewValidTill('')
+      setNewPaymentStatus('unpaid')
+      loadData()
+    } else {
+      setAddError('Failed to add student. Check all fields.')
+    }
   }
 
   const activeSubscriptions = subscriptions.filter(s => s.status === 'active')
@@ -46,7 +87,7 @@ function OwnerDashboard() {
     return `https://wa.me/91${student.phone}?text=${encodeURIComponent(msg)}`
   }
 
-  if(loading) return <p style={{ padding: '2rem' }}>Loading dashboard...</p>
+  if (loading) return <p style={{ padding: '2rem' }}>Loading dashboard...</p>
 
   return (
     <div style={{ fontFamily: 'sans-serif', backgroundColor: '#FFFBEB', minHeight: '100vh' }}>
@@ -89,7 +130,8 @@ function OwnerDashboard() {
             {showAddStudent && (
               <div style={{ background: '#FFFBEB', border: '1px solid #FAC775', borderRadius: '12px', padding: '1.5rem', marginBottom: '1.5rem' }}>
                 <h3 style={{ margin: '0 0 1rem', fontSize: '15px', color: '#1C1917' }}>Add New Student</h3>
-                <input placeholder="Student phone number" value={newStudentPhone} onChange={e => setNewStudentPhone(e.target.value)} style={{ width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '8px', border: '1px solid #E5E3DC', boxSizing: 'border-box', fontSize: '14px' }} />
+                <input placeholder="Student phone number *" value={newStudentPhone} onChange={e => setNewStudentPhone(e.target.value)} style={{ width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '8px', border: '1px solid #E5E3DC', boxSizing: 'border-box', fontSize: '14px' }} />
+                <input placeholder="Student name (optional)" value={newStudentName} onChange={e => setNewStudentName(e.target.value)} style={{ width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '8px', border: '1px solid #E5E3DC', boxSizing: 'border-box', fontSize: '14px' }} />
                 <input placeholder="Seat number (e.g. A12)" value={newSeatNumber} onChange={e => setNewSeatNumber(e.target.value)} style={{ width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '8px', border: '1px solid #E5E3DC', boxSizing: 'border-box', fontSize: '14px' }} />
                 <input placeholder="Monthly fee (₹)" value={newMonthlyFee} onChange={e => setNewMonthlyFee(e.target.value)} style={{ width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '8px', border: '1px solid #E5E3DC', boxSizing: 'border-box', fontSize: '14px' }} />
                 <input type="date" value={newValidFrom} onChange={e => setNewValidFrom(e.target.value)} style={{ width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '8px', border: '1px solid #E5E3DC', boxSizing: 'border-box', fontSize: '14px' }} />
@@ -140,7 +182,7 @@ function OwnerDashboard() {
                       <span style={{ background: sub.paymentStatus === 'paid' ? '#DCFCE7' : '#FEF2F2', color: sub.paymentStatus === 'paid' ? '#16A34A' : '#DC2626', padding: '2px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
                         {sub.paymentStatus}
                       </span>
-                      <div style={{ fontSize: '12px', color: '#D97706', fontWeight: '600' }}>Rs.{sub.monthlyFee}/mo</div>
+                      <div style={{ fontSize: '12px', color: '#D97706', fontWeight: '600' }}>₹{sub.monthlyFee}/mo</div>
                     </div>
                   </div>
                 </div>
@@ -160,9 +202,9 @@ function OwnerDashboard() {
                 <div key={sub.id} style={{ background: 'white', border: '1px solid #FECACA', borderRadius: '10px', padding: '1rem', marginBottom: '10px' }}>
                   <div style={{ fontWeight: '600', color: '#1C1917' }}>{student?.name || 'Unknown'}</div>
                   <div style={{ fontSize: '12px', color: '#78716C' }}>📞 {student?.phone}</div>
-                  <div style={{ fontSize: '12px', color: '#78716C' }}>🪑 Seat {sub.seatNumber} · Rs.{sub.monthlyFee}/mo</div>
+                  <div style={{ fontSize: '12px', color: '#78716C' }}>🪑 Seat {sub.seatNumber} · ₹{sub.monthlyFee}/mo</div>
                   {student && (
-                    <a href={waLink(student, `Hi ${student.name}, your Beepod membership fee of Rs.${sub.monthlyFee} is pending. Please pay to keep your seat.`)} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: '8px', background: '#25D366', color: 'white', padding: '6px 14px', borderRadius: '8px', textDecoration: 'none', fontSize: '13px', fontWeight: '600' }}>
+                    <a href={waLink(student, `Hi ${student.name}, your Beepod membership fee of ₹${sub.monthlyFee} is pending. Please pay to keep your seat.`)} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: '8px', background: '#25D366', color: 'white', padding: '6px 14px', borderRadius: '8px', textDecoration: 'none', fontSize: '13px', fontWeight: '600' }}>
                       WhatsApp Reminder
                     </a>
                   )}
@@ -247,6 +289,7 @@ function OwnerDashboard() {
                 )
               })}
             </div>
+
           </div>
         )}
 
