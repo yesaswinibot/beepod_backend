@@ -3,9 +3,11 @@ package com.beepod.backend.controller;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.beepod.backend.model.User;
@@ -28,5 +30,10 @@ public class AuthController {
         String email = credentials.get("email");
         String password = credentials.get("password");
         return authService.login(email, password);
+    }
+
+    @GetMapping("/check-phone")
+    public Map<String, Object> checkPhone(@RequestParam String phone) {
+        return authService.checkPhone(phone);
     }
 }

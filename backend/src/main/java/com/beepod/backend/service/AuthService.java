@@ -65,4 +65,22 @@ public class AuthService {
         response.put("name", user.getName());
         return response;
     }
+    public Map<String, Object> checkPhone(String phone) {
+    Map<String, Object> response = new HashMap<>();
+
+    Optional<User> userOpt = userRepository.findByPhone(phone);
+    if (userOpt.isEmpty()) {
+        response.put("exists", false);
+        return response;
+    }
+
+    User user = userOpt.get();
+    String token = jwtUtil.generateToken(user.getEmail(), user.getRole());
+    response.put("exists", true);
+    response.put("token", token);
+    response.put("role", user.getRole());
+    response.put("name", user.getName());
+    return response;
+}
+
 }
