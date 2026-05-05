@@ -1,10 +1,12 @@
 package com.beepod.backend.model;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 
 @Entity
 @Table(name = "spaces")
@@ -13,7 +15,7 @@ public class Space {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
+     //amenities
     private String name;
     private String address;
     private String city;
@@ -24,6 +26,10 @@ public class Space {
     private String amenities;
     private Boolean isVerified = false;
     private Boolean isActive = true;
+    @Column(nullable = true)
+    private Double latitude;
+    @Column(nullable = true)
+    private Double longitude;
 
     // Getters and Setters
     public Long getId() { return id; }
@@ -58,4 +64,29 @@ public class Space {
 
     public Boolean getIsActive() { return isActive; }
     public void setIsActive(Boolean isActive) { this.isActive = isActive; }
+    public Double getLatitude() {
+    return latitude;
+}
+
+public void setLatitude(Double latitude) {
+    this.latitude = latitude;
+}
+
+public Double getLongitude() {
+    return longitude;
+}
+
+public void setLongitude(Double longitude) {
+    this.longitude = longitude;
+}
+    @Transient
+    private Double distance; // For nearby search results
+
+    public Double getDistance() {
+        return distance;
+    }
+
+    public void setDistance(Double distance) {
+        this.distance = distance;
+    }
 }
