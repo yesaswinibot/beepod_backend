@@ -5,7 +5,7 @@ import Students from './pages/Students'
 import Spaces from './pages/Spaces'
 import OwnerDashboard from './pages/OwnerDashboard'
 import Login from './pages/Login'
-import FindRooms from './pages/FindRooms'
+import StudentRadar from './pages/StudentRadar'
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token'))
@@ -25,7 +25,7 @@ function App() {
     setName(null)
   }
 
-  if(!token) {
+  if (!token) {
     return <Login onLogin={handleLogin} />
   }
 
@@ -39,21 +39,14 @@ function App() {
           <Link to="/owner" style={{ color: 'white', textDecoration: 'none', fontSize: '14px' }}>Dashboard</Link>
         )}
         {role === 'student' && (
-          <Link to="/students" style={{ color: 'white', textDecoration: 'none', fontSize: '14px' }}>My Profile</Link>
+          <>
+            <Link to="/students" style={{ color: 'white', textDecoration: 'none', fontSize: '14px' }}>My Profile</Link>
+            <Link to="/radar" style={{ color: '#D97706', textDecoration: 'none', fontSize: '14px', fontWeight: '600' }}>🐝 Find Pods</Link>
+          </>
         )}
-        <span style={{ marginLeft: 'auto', color: '#78716C', fontSize: '13px' }}>
-          Hi, {name}
-        </span>
-        <button
-          onClick={handleLogout}
-          style={{ background: 'none', border: '1px solid #3C3835', color: '#78716C', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}
-        >
+        <span style={{ marginLeft: 'auto', color: '#78716C', fontSize: '13px' }}>Hi, {name}</span>
+        <button onClick={handleLogout} style={{ background: 'none', border: '1px solid #3C3835', color: '#78716C', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>
           Logout
-          <a href="/find-rooms" style={{ textDecoration: 'none', color: 'inherit' }}>
-  <button style={{ padding: '10px 20px', background: '#D97706', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', marginRight: '10px' }}>
-    Find Rooms
-  </button>
-</a>
         </button>
       </nav>
 
@@ -62,7 +55,7 @@ function App() {
         <Route path="/spaces" element={<Spaces />} />
         <Route path="/students" element={<Students />} />
         <Route path="/owner" element={role === 'owner' ? <OwnerDashboard /> : <Navigate to="/" />} />
-        <Route path="/find-rooms" element={<FindRooms />} />
+        <Route path="/radar" element={role === 'student' ? <StudentRadar /> : <Navigate to="/" />} />
       </Routes>
     </BrowserRouter>
   )
