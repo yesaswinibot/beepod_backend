@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.beepod.backend.model.User;
 import com.beepod.backend.service.AuthService;
+import com.beepod.backend.service.EmailOtpService;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -19,6 +20,9 @@ public class AuthController {
 
     @Autowired
     private AuthService authService;
+
+    @Autowired
+    private EmailOtpService emailOtpService;
 
     @PostMapping("/register")
     public Map<String, String> register(@RequestBody User user) {
@@ -35,5 +39,15 @@ public class AuthController {
     @GetMapping("/check-phone")
     public Map<String, Object> checkPhone(@RequestParam String phone) {
         return authService.checkPhone(phone);
+    }
+
+    @PostMapping("/send-email-otp")
+    public Map<String, String> sendEmailOtp(@RequestBody Map<String, String> body) {
+        return emailOtpService.sendOtp(body.get("email"));
+    }
+
+    @PostMapping("/verify-email-otp")
+    public Map<String, Object> verifyEmailOtp(@RequestBody Map<String, String> body) {
+        return emailOtpService.verifyOtp(body.get("email"), body.get("otp"));
     }
 }

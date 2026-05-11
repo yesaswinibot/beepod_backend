@@ -5,22 +5,15 @@ import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth'
 const API = 'https://beepodbackend-production.up.railway.app'
 
 function Login({ onLogin }) {
-  const [mode, setMode] = useState('login') // 'login' | 'register' | 'phone'
-  const [step, setStep] = useState(1) // for phone: 1=enter phone, 2=enter otp, 3=fill details
-
-  // Email/password fields
+  const [mode, setMode] = useState('login')
+  const [step, setStep] = useState(1)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-
-  // Phone fields
   const [phone, setPhone] = useState('')
   const [otp, setOtp] = useState('')
   const [confirmResult, setConfirmResult] = useState(null)
-
-  // Profile fields
   const [name, setName] = useState('')
   const [role, setRole] = useState('student')
-
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const recaptchaRef = useRef(null)
@@ -28,13 +21,12 @@ function Login({ onLogin }) {
   useEffect(() => {
     return () => {
       if (window.recaptchaVerifier) {
-        window.recaptchaVerifier.clear()
+        try { window.recaptchaVerifier.clear() } catch {}
         window.recaptchaVerifier = null
       }
     }
   }, [])
 
-  // ── Email login/register ──────────────────────────────
   async function handleEmailSubmit() {
     setLoading(true)
     setError('')
@@ -54,53 +46,61 @@ function Login({ onLogin }) {
     setLoading(false)
   }
 
-  // ── Phone OTP: send OTP ───────────────────────────────
   async function sendOtp() {
     setError('')
     if (!phone || phone.length < 10) { setError('Enter a valid 10-digit phone number.'); return }
     setLoading(true)
     try {
-      if (!window.recaptchaVerifier) {
-        window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' })
+      // Clear any old verifier
+      if (window.recaptchaVerifier) {
+        try { window.recaptchaVerifier.clear() } catch {}
+        window.recaptchaVerifier = null
       }
+
+      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        size: 'invisible',
+        callback: () => {}
+      })
+
+      await window.recaptchaVerifier.render()
+
       const fullPhone = `+91${phone.replace(/\D/g, '')}`
       const result = await signInWithPhoneNumber(auth, fullPhone, window.recaptchaVerifier)
       setConfirmResult(result)
       setStep(2)
     } catch (e) {
-      setError('Failed to send OTP. Check the number and try again.')
-      if (window.recaptchaVerifier) { window.recaptchaVerifier.clear(); window.recaptchaVerifier = null }
+      console.error('OTP error:', e)
+      setError(`Failed to send OTP: ${e.message || 'Try again.'}`)
+      if (window.recaptchaVerifier) {
+        try { window.recaptchaVerifier.clear() } catch {}
+        window.recaptchaVerifier = null
+      }
     }
     setLoading(false)
   }
 
-  // ── Phone OTP: verify OTP ─────────────────────────────
   async function verifyOtp() {
     setError('')
     if (!otp || otp.length !== 6) { setError('Enter the 6-digit OTP.'); return }
     setLoading(true)
     try {
       await confirmResult.confirm(otp)
-      // Check if user already exists in our backend
       const res = await fetch(`${API}/api/auth/check-phone?phone=${phone}`)
       const data = await res.json()
       if (data.exists) {
-        // Existing user — log them in
         localStorage.setItem('token', data.token)
         localStorage.setItem('role', data.role)
         localStorage.setItem('name', data.name)
         onLogin(data.role)
       } else {
-        // New user — ask for name and role
         setStep(3)
       }
-    } catch {
+    } catch (e) {
       setError('Invalid OTP. Please try again.')
     }
     setLoading(false)
   }
 
-  // ── Phone OTP: complete registration ──────────────────
   async function completePhoneRegister() {
     setError('')
     if (!name) { setError('Please enter your name.'); return }
@@ -147,7 +147,6 @@ function Login({ onLogin }) {
           <p style={{ color: '#B45309', margin: 0, fontSize: '13px' }}>Find your focus. Own your time.</p>
         </div>
 
-        {/* Tab switcher */}
         {mode !== 'phone' && step === 1 && (
           <div style={{ display: 'flex', background: '#FEF3C7', borderRadius: '10px', padding: '3px', marginBottom: '1.5rem', gap: '3px' }}>
             {['login', 'register'].map(m => (
@@ -159,7 +158,6 @@ function Login({ onLogin }) {
           </div>
         )}
 
-        {/* ── EMAIL FORM ── */}
         {mode !== 'phone' && (
           <>
             {mode === 'register' && (
@@ -173,18 +171,14 @@ function Login({ onLogin }) {
             )}
             <input placeholder="Email address" value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} />
             <input placeholder="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} style={inputStyle} />
-
             {error && <p style={{ color: '#DC2626', fontSize: '13px', margin: '0 0 10px' }}>{error}</p>}
-
             <button onClick={handleEmailSubmit} disabled={loading} style={btnStyle}>
               {loading ? 'Please wait...' : mode === 'register' ? 'Create Account' : 'Sign In'}
             </button>
-
             <div style={{ position: 'relative', textAlign: 'center', margin: '0 0 12px' }}>
               <div style={{ borderTop: '1px solid #FDE68A', position: 'absolute', top: '50%', left: 0, right: 0 }} />
               <span style={{ background: 'white', padding: '0 10px', color: '#B45309', fontSize: '12px', position: 'relative' }}>or</span>
             </div>
-
             <button onClick={() => { setMode('phone'); setStep(1); setError('') }}
               style={{ ...btnStyle, background: '#FEF3C7', color: '#D97706', border: '1.5px solid #FCD34D', marginBottom: '12px' }}>
               📱 Continue with Phone OTP
@@ -192,7 +186,6 @@ function Login({ onLogin }) {
           </>
         )}
 
-        {/* ── PHONE FLOW ── */}
         {mode === 'phone' && (
           <>
             {step === 1 && (
@@ -204,7 +197,7 @@ function Login({ onLogin }) {
                     style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
                 </div>
                 {error && <p style={{ color: '#DC2626', fontSize: '13px', margin: '0 0 10px' }}>{error}</p>}
-                <div id="recaptcha-container" ref={recaptchaRef} />
+                <div id="recaptcha-container" ref={recaptchaRef} style={{ marginBottom: '10px' }} />
                 <button onClick={sendOtp} disabled={loading} style={btnStyle}>
                   {loading ? 'Sending...' : 'Send OTP'}
                 </button>
