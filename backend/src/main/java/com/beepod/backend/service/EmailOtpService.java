@@ -1,20 +1,21 @@
 package com.beepod.backend.service;
 
-import com.beepod.backend.model.EmailOtp;
-import com.beepod.backend.model.User;
-import com.beepod.backend.repository.EmailOtpRepository;
-import com.beepod.backend.repository.UserRepository;
-import com.beepod.backend.JwtUtil;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.stereotype.Service;
-
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.stereotype.Service;
+
+import com.beepod.backend.JwtUtil;
+import com.beepod.backend.model.EmailOtp;
+import com.beepod.backend.model.User;
+import com.beepod.backend.repository.EmailOtpRepository;
+import com.beepod.backend.repository.UserRepository;
 
 @Service
 public class EmailOtpService {
@@ -34,10 +35,8 @@ public class EmailOtpService {
     public Map<String, String> sendOtp(String email) {
         Map<String, String> response = new HashMap<>();
 
-        // Generate 6-digit OTP
         String otp = String.format("%06d", new Random().nextInt(999999));
 
-        // Save to DB with 5 min expiry
         EmailOtp emailOtp = new EmailOtp();
         emailOtp.setEmail(email);
         emailOtp.setOtp(otp);
@@ -45,7 +44,6 @@ public class EmailOtpService {
         emailOtp.setUsed(false);
         emailOtpRepository.save(emailOtp);
 
-        // Send email
         try {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setTo(email);
@@ -54,7 +52,9 @@ public class EmailOtpService {
             mailSender.send(message);
             response.put("message", "OTP sent successfully");
         } catch (Exception e) {
-            response.put("error", "Failed to send email. Try again.");
+            e.printStackTrace();
+            System.err.println("EMAIL SEND ERROR: " + e.getMessage());
+            response.put("error", "Failed to send email: " + e.getMessage());
         }
 
         return response;
@@ -87,11 +87,9 @@ public class EmailOtpService {
             return response;
         }
 
-        // Mark OTP as used
         emailOtp.setUsed(true);
         emailOtpRepository.save(emailOtp);
 
-        // Check if user exists
         Optional<User> userOpt = userRepository.findByEmail(email);
         if (userOpt.isPresent()) {
             User user = userOpt.get();
