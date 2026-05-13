@@ -15,7 +15,7 @@ public class Space {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-     //amenities
+
     private String name;
     private String address;
     private String city;
@@ -26,12 +26,21 @@ public class Space {
     private String amenities;
     private Boolean isVerified = false;
     private Boolean isActive = true;
+
     @Column(nullable = true)
     private Double latitude;
     @Column(nullable = true)
     private Double longitude;
 
-    // Getters and Setters
+    @Column(name = "status")
+    private String status = "pending";
+
+    @Column(name = "owner_id")
+    private Long ownerId;
+
+    @Transient
+    private Double distance;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -64,29 +73,19 @@ public class Space {
 
     public Boolean getIsActive() { return isActive; }
     public void setIsActive(Boolean isActive) { this.isActive = isActive; }
-    public Double getLatitude() {
-    return latitude;
-}
 
-public void setLatitude(Double latitude) {
-    this.latitude = latitude;
-}
+    public Double getLatitude() { return latitude; }
+    public void setLatitude(Double latitude) { this.latitude = latitude; }
 
-public Double getLongitude() {
-    return longitude;
-}
+    public Double getLongitude() { return longitude; }
+    public void setLongitude(Double longitude) { this.longitude = longitude; }
 
-public void setLongitude(Double longitude) {
-    this.longitude = longitude;
-}
-    @Transient
-    private Double distance; // For nearby search results
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
 
-    public Double getDistance() {
-        return distance;
-    }
+    public Long getOwnerId() { return ownerId; }
+    public void setOwnerId(Long ownerId) { this.ownerId = ownerId; }
 
-    public void setDistance(Double distance) {
-        this.distance = distance;
-    }
+    public Double getDistance() { return distance; }
+    public void setDistance(Double distance) { this.distance = distance; }
 }

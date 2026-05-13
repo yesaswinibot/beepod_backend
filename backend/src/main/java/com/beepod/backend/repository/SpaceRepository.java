@@ -11,5 +11,6 @@ import com.beepod.backend.model.Space;
 public interface SpaceRepository extends JpaRepository<Space, Long> {
     List<Space> findByCity(String city);
     List<Space> findByIsVerifiedTrue();
+    List<Space> findByStatus(String status);
+    List<Space> findByOwnerId(Long ownerId);
 }
-
