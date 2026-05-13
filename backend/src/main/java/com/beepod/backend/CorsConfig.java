@@ -16,8 +16,10 @@ public class CorsConfig {
                 registry.addMapping("/api/**")
                         .allowedOrigins("http://localhost:5173", "https://mellow-syrniki-7f8970.netlify.app","https://beepod.in",
     "https://www.beepod.in")
-                        .allowedMethods("GET", "POST", "PUT", "DELETE");
-            }
+                        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                        .allowedHeaders("*");
+                    }
+
         };
     }
 }
