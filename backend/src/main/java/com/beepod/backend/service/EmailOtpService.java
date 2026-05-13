@@ -7,9 +7,12 @@ import java.util.Optional;
 import java.util.Random;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import com.beepod.backend.JwtUtil;
 import com.beepod.backend.model.EmailOtp;
@@ -27,10 +30,10 @@ public class EmailOtpService {
     private UserRepository userRepository;
 
     @Autowired
-    private JavaMailSender mailSender;
-
-    @Autowired
     private JwtUtil jwtUtil;
+
+    @Value("${RESEND_API_KEY}")
+    private String resendApiKey;
 
     public Map<String, String> sendOtp(String email) {
         Map<String, String> response = new HashMap<>();
@@ -45,11 +48,20 @@ public class EmailOtpService {
         emailOtpRepository.save(emailOtp);
 
         try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setTo(email);
-            message.setSubject("Your BeePod OTP");
-            message.setText("Hi! Your BeePod verification code is: " + otp + "\n\nThis code expires in 5 minutes.\n\n🐝 BeePod Team");
-            mailSender.send(message);
+            RestTemplate restTemplate = new RestTemplate();
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(resendApiKey);
+
+            Map<String, Object> body = new HashMap<>();
+            body.put("from", "BeePod <onboarding@resend.dev>");
+            body.put("to", new String[]{email});
+            body.put("subject", "Your BeePod OTP");
+            body.put("text", "Hi! Your BeePod verification code is: " + otp + "\n\nThis code expires in 5 minutes.\n\n🐝 BeePod Team");
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+            restTemplate.postForObject("https://api.resend.com/emails", request, String.class);
+
             response.put("message", "OTP sent successfully");
         } catch (Exception e) {
             e.printStackTrace();
@@ -65,27 +77,13 @@ public class EmailOtpService {
 
         Optional<EmailOtp> otpOpt = emailOtpRepository.findTopByEmailOrderByExpiresAtDesc(email);
 
-        if (otpOpt.isEmpty()) {
-            response.put("error", "No OTP found. Request a new one.");
-            return response;
-        }
+        if (otpOpt.isEmpty()) { response.put("error", "No OTP found. Request a new one."); return response; }
 
         EmailOtp emailOtp = otpOpt.get();
 
-        if (emailOtp.isUsed()) {
-            response.put("error", "OTP already used. Request a new one.");
-            return response;
-        }
-
-        if (LocalDateTime.now().isAfter(emailOtp.getExpiresAt())) {
-            response.put("error", "OTP expired. Request a new one.");
-            return response;
-        }
-
-        if (!emailOtp.getOtp().equals(otp)) {
-            response.put("error", "Incorrect OTP.");
-            return response;
-        }
+        if (emailOtp.isUsed()) { response.put("error", "OTP already used. Request a new one."); return response; }
+        if (LocalDateTime.now().isAfter(emailOtp.getExpiresAt())) { response.put("error", "OTP expired. Request a new one."); return response; }
+        if (!emailOtp.getOtp().equals(otp)) { response.put("error", "Incorrect OTP."); return response; }
 
         emailOtp.setUsed(true);
         emailOtpRepository.save(emailOtp);
