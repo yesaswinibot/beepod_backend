@@ -44,6 +44,7 @@ function Login({ onLogin }) {
       localStorage.setItem('token', data.token)
       localStorage.setItem('role', data.role)
       localStorage.setItem('name', data.name)
+      localStorage.setItem('userId', data.userId)
       onLogin(data.role)
     } catch {
       setError('Something went wrong. Try again.')
@@ -89,6 +90,7 @@ function Login({ onLogin }) {
         localStorage.setItem('token', data.token)
         localStorage.setItem('role', data.role)
         localStorage.setItem('name', data.name)
+        localStorage.setItem('userId', data.userId)
         onLogin(data.role)
       } else {
         setStep(3) // ask for profile
@@ -115,6 +117,7 @@ function Login({ onLogin }) {
       localStorage.setItem('token', data.token)
       localStorage.setItem('role', data.role)
       localStorage.setItem('name', data.name)
+      localStorage.setItem('userId', data.userId)
       onLogin(data.role)
     } catch {
       setError('Registration failed. Try again.')

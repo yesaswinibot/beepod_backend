@@ -25,12 +25,12 @@ public class AuthController {
     private EmailOtpService emailOtpService;
 
     @PostMapping("/register")
-    public Map<String, String> register(@RequestBody User user) {
+    public Map<String, Object> register(@RequestBody User user) {
         return authService.register(user);
     }
 
     @PostMapping("/login")
-    public Map<String, String> login(@RequestBody Map<String, String> credentials) {
+    public Map<String, Object> login(@RequestBody Map<String, String> credentials) {
         String email = credentials.get("email");
         String password = credentials.get("password");
         return authService.login(email, password);

@@ -24,8 +24,8 @@ public class AuthService {
     private JwtUtil jwtUtil;
 
 
-    public Map<String, String> register(User user) {
-        Map<String, String> response = new HashMap<>();
+    public Map<String, Object> register(User user) {
+        Map<String, Object> response = new HashMap<>();
 
         Optional<User> existing = userRepository.findByEmail(user.getEmail());
         if(existing.isPresent()) {
@@ -40,11 +40,12 @@ public class AuthService {
         response.put("token", token);
         response.put("role", user.getRole());
         response.put("name", user.getName());
+        response.put("userId", user.getId());
         return response;
     }
 
-    public Map<String, String> login(String email, String password) {
-        Map<String, String> response = new HashMap<>();
+    public Map<String, Object> login(String email, String password) {
+        Map<String, Object> response = new HashMap<>();
 
         Optional<User> userOpt = userRepository.findByEmail(email);
         if(userOpt.isEmpty()) {
@@ -63,24 +64,26 @@ public class AuthService {
         response.put("token", token);
         response.put("role", user.getRole());
         response.put("name", user.getName());
+        response.put("userId", user.getId());
         return response;
     }
+
     public Map<String, Object> checkPhone(String phone) {
-    Map<String, Object> response = new HashMap<>();
+        Map<String, Object> response = new HashMap<>();
 
-    Optional<User> userOpt = userRepository.findByPhone(phone);
-    if (userOpt.isEmpty()) {
-        response.put("exists", false);
+        Optional<User> userOpt = userRepository.findByPhone(phone);
+        if (userOpt.isEmpty()) {
+            response.put("exists", false);
+            return response;
+        }
+
+        User user = userOpt.get();
+        String token = jwtUtil.generateToken(user.getEmail(), user.getRole());
+        response.put("exists", true);
+        response.put("token", token);
+        response.put("role", user.getRole());
+        response.put("name", user.getName());
+        response.put("userId", user.getId());
         return response;
     }
-
-    User user = userOpt.get();
-    String token = jwtUtil.generateToken(user.getEmail(), user.getRole());
-    response.put("exists", true);
-    response.put("token", token);
-    response.put("role", user.getRole());
-    response.put("name", user.getName());
-    return response;
-}
-
 }

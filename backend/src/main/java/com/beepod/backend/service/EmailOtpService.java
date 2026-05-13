@@ -96,6 +96,7 @@ public class EmailOtpService {
             response.put("token", token);
             response.put("role", user.getRole());
             response.put("name", user.getName());
+            response.put("userId", user.getId());
         } else {
             response.put("exists", false);
         }
