@@ -54,7 +54,7 @@ public class EmailOtpService {
             headers.setBearerAuth(resendApiKey);
 
             Map<String, Object> body = new HashMap<>();
-            body.put("from", "BeePod <onboarding@resend.dev>");
+            body.put("from", "BeePod <noreply@beepod.in>");
             body.put("to", new String[]{email});
             body.put("subject", "Your BeePod OTP");
             body.put("text", "Hi! Your BeePod verification code is: " + otp + "\n\nThis code expires in 5 minutes.\n\n🐝 BeePod Team");
