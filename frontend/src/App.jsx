@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BrowserRouter, Routes, Route, Link, Navigate, useNavigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import Home from './pages/Home'
 import Students from './pages/Students'
 import Spaces from './pages/Spaces'
@@ -27,55 +27,105 @@ function App() {
     setName(null)
   }
 
-  if (!token) {
-    return <Login onLogin={handleLogin} />
-  }
-
-  // Get owner ID from localStorage (you may need to store this on login)
+  // Get owner ID for logged-in owners
   const ownerId = parseInt(localStorage.getItem('userId') || '0')
+
+  // Helper: redirect logged-in users to their main page
+  const homeForRole = role === 'student' ? '/radar' : role === 'owner' ? '/owner' : role === 'admin' ? '/admin' : '/'
 
   return (
     <BrowserRouter>
-      <nav style={{ backgroundColor: '#1C1917', padding: '1rem 2rem', display: 'flex', gap: '2rem', alignItems: 'center', flexWrap: 'wrap' }}>
-        <span style={{ color: '#D97706', fontWeight: '800', fontSize: '18px' }}>Beepod 🐝</span>
-        <Link to="/" style={{ color: 'white', textDecoration: 'none', fontSize: '14px' }}>Home</Link>
-        <Link to="/spaces" style={{ color: 'white', textDecoration: 'none', fontSize: '14px' }}>Study Rooms</Link>
+      <Routes>
+        {/* Splash page — only for logged-out users */}
+        <Route path="/" element={
+          token ? <Navigate to={homeForRole} replace /> : <Home />
+        } />
+
+        {/* Login — always accessible */}
+        <Route path="/login" element={
+          token ? <Navigate to={homeForRole} replace /> : <Login onLogin={handleLogin} />
+        } />
+
+        {/* Role-protected routes */}
+        <Route path="/spaces" element={token ? <AppShell role={role} name={name} onLogout={handleLogout}><Spaces /></AppShell> : <Navigate to="/" />} />
+        <Route path="/students" element={token ? <AppShell role={role} name={name} onLogout={handleLogout}><Students /></AppShell> : <Navigate to="/" />} />
+
+        <Route path="/owner" element={
+          token && role === 'owner'
+            ? <AppShell role={role} name={name} onLogout={handleLogout}><OwnerDashboard /></AppShell>
+            : <Navigate to="/" />
+        } />
+
+        <Route path="/register-space" element={
+          token && role === 'owner'
+            ? <AppShell role={role} name={name} onLogout={handleLogout}><SpaceRegistrationWrapper ownerId={ownerId} /></AppShell>
+            : <Navigate to="/" />
+        } />
+
+        <Route path="/radar" element={
+          token && role === 'student'
+            ? <StudentRadar />
+            : <Navigate to="/" />
+        } />
+
+        <Route path="/admin" element={
+          token && role === 'admin'
+            ? <AppShell role={role} name={name} onLogout={handleLogout}><AdminPanel /></AppShell>
+            : <Navigate to="/" />
+        } />
+      </Routes>
+    </BrowserRouter>
+  )
+}
+
+// Shell with nav for owner/admin pages (student radar has its own minimal header)
+function AppShell({ role, name, onLogout, children }) {
+  return (
+    <div>
+      <nav style={{
+        backgroundColor: '#0F0E0C',
+        padding: '0.9rem 1.5rem',
+        display: 'flex',
+        gap: '1.5rem',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        fontFamily: '"Plus Jakarta Sans", sans-serif'
+      }}>
+        <a href={role === 'student' ? '/radar' : role === 'owner' ? '/owner' : '/admin'}
+          style={{ color: '#FFD361', fontWeight: 600, fontSize: 18, textDecoration: 'none', letterSpacing: -0.3 }}>
+          beepod<span style={{ color: '#FF2E7E', fontStyle: 'italic' }}>.</span>
+        </a>
 
         {role === 'owner' && (
           <>
-            <Link to="/owner" style={{ color: 'white', textDecoration: 'none', fontSize: '14px' }}>Dashboard</Link>
-            <Link to="/register-space" style={{ color: '#D97706', textDecoration: 'none', fontSize: '14px', fontWeight: '600' }}>+ Add Space</Link>
-          </>
-        )}
-
-        {role === 'student' && (
-          <>
-            <Link to="/students" style={{ color: 'white', textDecoration: 'none', fontSize: '14px' }}>My Profile</Link>
-            <Link to="/radar" style={{ color: '#D97706', textDecoration: 'none', fontSize: '14px', fontWeight: '600' }}>🐝 Find Pods</Link>
+            <a href="/owner" style={navLink}>dashboard</a>
+            <a href="/register-space" style={{ ...navLink, color: '#FFD361' }}>+ add space</a>
           </>
         )}
 
         {role === 'admin' && (
-          <Link to="/admin" style={{ color: '#D97706', textDecoration: 'none', fontSize: '14px', fontWeight: '700' }}>⚙️ Admin</Link>
+          <a href="/admin" style={{ ...navLink, color: '#FFD361' }}>⚙ admin</a>
         )}
 
-        <span style={{ marginLeft: 'auto', color: '#78716C', fontSize: '13px' }}>Hi, {name}</span>
-        <button onClick={handleLogout} style={{ background: 'none', border: '1px solid #3C3835', color: '#78716C', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>
-          Logout
+        <span style={{ marginLeft: 'auto', color: 'rgba(251,247,238,0.6)', fontSize: 13 }}>hi, {name?.toLowerCase()}</span>
+        <button onClick={onLogout} style={{
+          background: 'transparent', border: '1px solid rgba(255,211,97,0.3)',
+          color: '#FFD361', padding: '6px 14px', borderRadius: 8,
+          cursor: 'pointer', fontSize: 13, fontFamily: 'inherit'
+        }}>
+          logout
         </button>
       </nav>
-
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/spaces" element={<Spaces />} />
-        <Route path="/students" element={<Students />} />
-        <Route path="/owner" element={role === 'owner' ? <OwnerDashboard /> : <Navigate to="/" />} />
-        <Route path="/register-space" element={role === 'owner' ? <SpaceRegistrationWrapper ownerId={ownerId} /> : <Navigate to="/" />} />
-        <Route path="/radar" element={role === 'student' ? <StudentRadar /> : <Navigate to="/" />} />
-        <Route path="/admin" element={role === 'admin' ? <AdminPanel /> : <Navigate to="/" />} />
-      </Routes>
-    </BrowserRouter>
+      {children}
+    </div>
   )
+}
+
+const navLink = {
+  color: 'rgba(251,247,238,0.85)',
+  textDecoration: 'none',
+  fontSize: 14,
+  fontFamily: 'inherit'
 }
 
 function SpaceRegistrationWrapper({ ownerId }) {
