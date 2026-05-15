@@ -2,300 +2,638 @@ import { useState, useEffect } from 'react'
 
 const API = 'https://beepodbackend-production.up.railway.app'
 
+// ── Sidebar nav items ─────────────────
+const NAV = [
+  { id: 'dashboard', label: 'Dashboard', icon: '▦' },
+  { id: 'students', label: 'Students', icon: '○' },
+  { id: 'unpaid', label: 'Unpaid', icon: '₹' },
+  { id: 'expiry', label: 'Expiry', icon: '▤' },
+  { id: 'earnings', label: 'Earnings', icon: '◈' },
+]
+
+// ── Reusable components ─────────────────
+
+function Sidebar({ active, onNav, ownerName }) {
+  const initials = (ownerName || 'O').split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase()
+  return (
+    <aside style={sb.aside}>
+      <div style={sb.brand}>
+        <div style={sb.logoMark}>B</div>
+        <span style={sb.brandText}>BeePod</span>
+      </div>
+      <nav style={sb.nav}>
+        {NAV.map(item => (
+          <button key={item.id} onClick={() => onNav(item.id)}
+            style={{ ...sb.navItem, ...(active === item.id ? sb.navItemActive : {}) }}>
+            <span style={sb.navIcon}>{item.icon}</span>
+            <span>{item.label}</span>
+          </button>
+        ))}
+      </nav>
+      <div style={sb.owner}>
+        <div style={sb.avatar}>{initials}</div>
+        <div style={{ textAlign: 'left' }}>
+          <div style={sb.ownerName}>{ownerName || 'Owner'}</div>
+          <div style={sb.ownerSub}>Study Room Owner</div>
+        </div>
+      </div>
+    </aside>
+  )
+}
+
+function StatCard({ label, value, sub }) {
+  return (
+    <div style={card.card}>
+      <div style={card.label}>{label}</div>
+      <div style={card.value}>{value}</div>
+      <div style={card.sub}>{sub}</div>
+    </div>
+  )
+}
+
+function StatusPill({ status }) {
+  const isPaid = status === 'paid'
+  return (
+    <span style={{
+      ...pill.base,
+      background: isPaid ? '#DCFCE7' : '#FFF4CC',
+      color: isPaid ? '#15803D' : '#7A5A00'
+    }}>
+      <span style={{ ...pill.dot, background: isPaid ? '#22C55E' : '#FFC529' }} />
+      {status}
+    </span>
+  )
+}
+
+// ── Revenue chart (SVG) ─────────────────
+function RevenueChart({ subscriptions }) {
+  const W = 760, H = 260
+  const pad = { top: 16, right: 16, bottom: 28, left: 56 }
+  const innerW = W - pad.left - pad.right
+  const innerH = H - pad.top - pad.bottom
+
+  // Generate daily revenue from subscriptions
+  const today = new Date()
+  const data = []
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(today)
+    d.setDate(today.getDate() - i)
+    const label = `${d.toLocaleString('en-US', { month: 'short' })} ${d.getDate()}`
+    // Simulate daily revenue based on subscription data
+    const activeOnDay = subscriptions.filter(s => {
+      const from = new Date(s.validFrom)
+      const till = new Date(s.validTill)
+      return d >= from && d <= till
+    })
+    const revenue = activeOnDay.reduce((sum, s) => sum + Math.round((s.monthlyFee || 0) / 30), 0)
+    data.push({ label, revenue, date: d })
+  }
+
+  if (data.length === 0) return <div style={{ padding: 40, textAlign: 'center', color: '#8A8A82' }}>No data yet</div>
+
+  const maxVal = Math.max(...data.map(d => d.revenue), 100)
+  const yMax = Math.ceil(maxVal / 500) * 500 || 500
+  const yRange = yMax
+
+  const x = (i) => pad.left + (data.length === 1 ? innerW / 2 : (i / (data.length - 1)) * innerW)
+  const y = (v) => pad.top + innerH - (v / yRange) * innerH
+
+  const path = data.map((d, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(d.revenue).toFixed(1)}`).join(' ')
+
+  const ticks = 4
+  const tickVals = Array.from({ length: ticks + 1 }, (_, i) => (yRange * i) / ticks)
+  const labelStep = Math.max(1, Math.floor(data.length / 6))
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: 'block' }} preserveAspectRatio="none">
+      {tickVals.map((v, i) => (
+        <g key={i}>
+          <line x1={pad.left} x2={W - pad.right} y1={y(v)} y2={y(v)} stroke="#ECECE8" strokeDasharray="3 3" strokeWidth={1} />
+          <text x={pad.left - 8} y={y(v) + 4} fontSize="11" fill="#8A8A82" textAnchor="end">₹{v.toLocaleString('en-IN')}</text>
+        </g>
+      ))}
+      <path d={`${path} L ${x(data.length - 1).toFixed(1)} ${y(0).toFixed(1)} L ${x(0).toFixed(1)} ${y(0).toFixed(1)} Z`}
+        fill="#FFC529" fillOpacity="0.22" />
+      <path d={path} fill="none" stroke="#1B6B36" strokeWidth="2.5" />
+      {data.map((d, i) =>
+        i % labelStep === 0 || i === data.length - 1 ? (
+          <text key={i} x={x(i)} y={H - 8} fontSize="11" fill="#8A8A82" textAnchor="middle">{d.label}</text>
+        ) : null
+      )}
+    </svg>
+  )
+}
+
+// ── Main Dashboard ─────────────────
 function OwnerDashboard() {
+  const [page, setPage] = useState('dashboard')
   const [spaces, setSpaces] = useState([])
   const [students, setStudents] = useState([])
   const [subscriptions, setSubscriptions] = useState([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('dashboard')
-  const [showAddStudent, setShowAddStudent] = useState(false)
-  const [newStudentPhone, setNewStudentPhone] = useState('')
-  const [newStudentName, setNewStudentName] = useState('')
-  const [newSeatNumber, setNewSeatNumber] = useState('')
-  const [newMonthlyFee, setNewMonthlyFee] = useState('')
-  const [newValidFrom, setNewValidFrom] = useState('')
-  const [newValidTill, setNewValidTill] = useState('')
-  const [newPaymentStatus, setNewPaymentStatus] = useState('unpaid')
+
+  // Add student form
+  const [showAdd, setShowAdd] = useState(false)
+  const [newPhone, setNewPhone] = useState('')
+  const [newName, setNewName] = useState('')
+  const [newSeat, setNewSeat] = useState('')
+  const [newFee, setNewFee] = useState('')
+  const [newFrom, setNewFrom] = useState('')
+  const [newTill, setNewTill] = useState('')
+  const [newPayment, setNewPayment] = useState('unpaid')
   const [addError, setAddError] = useState('')
+
+  const ownerName = localStorage.getItem('name') || 'Owner'
 
   useEffect(() => { loadData() }, [])
 
   async function loadData() {
-    const [spacesData, studentsData, subsData] = await Promise.all([
-      fetch(`${API}/api/spaces`).then(r => r.json()),
-      fetch(`${API}/api/students`).then(r => r.json()),
-      fetch(`${API}/api/subscriptions/space/1`).then(r => r.json())
-    ])
-    setSpaces(spacesData)
-    setStudents(studentsData)
-    setSubscriptions(subsData)
+    try {
+      const [sp, st, su] = await Promise.all([
+        fetch(`${API}/api/spaces`).then(r => r.json()),
+        fetch(`${API}/api/students`).then(r => r.json()),
+        fetch(`${API}/api/subscriptions/space/1`).then(r => r.json())
+      ])
+      setSpaces(sp)
+      setStudents(st)
+      setSubscriptions(su)
+    } catch (e) { console.error(e) }
     setLoading(false)
   }
 
   async function addStudent() {
     setAddError('')
-    if (!newStudentPhone) { setAddError('Phone number is required.'); return }
-
+    if (!newPhone) { setAddError('Phone number is required.'); return }
     const allStudents = await fetch(`${API}/api/students`).then(r => r.json())
-    let student = allStudents.find(s => s.phone === newStudentPhone)
-
+    let student = allStudents.find(s => s.phone === newPhone)
     if (!student) {
       const createRes = await fetch(`${API}/api/students`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: newStudentPhone, name: newStudentName || newStudentPhone })
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: newPhone, name: newName || newPhone })
       })
-      if (!createRes.ok) { setAddError('Failed to create student. Try again.'); return }
+      if (!createRes.ok) { setAddError('Failed to create student.'); return }
       student = await createRes.json()
     }
-
-    const sub = {
-      spaceId: spaces[0]?.id,
-      studentId: student.id,
-      seatNumber: newSeatNumber,
-      monthlyFee: parseInt(newMonthlyFee),
-      validFrom: newValidFrom,
-      validTill: newValidTill,
-      paymentStatus: newPaymentStatus
-    }
-
-    const res = await fetch(`${API}/api/subscriptions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(sub)
-    })
-
+    const sub = { spaceId: spaces[0]?.id, studentId: student.id, seatNumber: newSeat, monthlyFee: parseInt(newFee), validFrom: newFrom, validTill: newTill, paymentStatus: newPayment }
+    const res = await fetch(`${API}/api/subscriptions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sub) })
     if (res.ok) {
-      setShowAddStudent(false)
-      setNewStudentPhone('')
-      setNewStudentName('')
-      setNewSeatNumber('')
-      setNewMonthlyFee('')
-      setNewValidFrom('')
-      setNewValidTill('')
-      setNewPaymentStatus('unpaid')
+      setShowAdd(false); setNewPhone(''); setNewName(''); setNewSeat(''); setNewFee(''); setNewFrom(''); setNewTill(''); setNewPayment('unpaid')
       loadData()
-    } else {
-      setAddError('Failed to add student. Check all fields.')
-    }
+    } else { setAddError('Failed to add student. Check all fields.') }
   }
 
   const activeSubscriptions = subscriptions.filter(s => s.status === 'active')
   const unpaidSubscriptions = subscriptions.filter(s => s.paymentStatus === 'unpaid')
+  const totalRevenue = subscriptions.reduce((sum, s) => sum + (s.monthlyFee || 0), 0)
+  const paidRevenue = subscriptions.filter(s => s.paymentStatus === 'paid').reduce((sum, s) => sum + (s.monthlyFee || 0), 0)
+  const occupancyRate = spaces[0]?.totalSeats ? Math.round((activeSubscriptions.length / spaces[0].totalSeats) * 100) : 0
 
   function waLink(student, msg) {
     return `https://wa.me/91${student.phone}?text=${encodeURIComponent(msg)}`
   }
 
-  if (loading) return <p style={{ padding: '2rem' }}>Loading dashboard...</p>
+  if (loading) return (
+    <div style={{ minHeight: '100vh', background: '#FAFAF7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit' }}>
+      <p style={{ color: '#8A8A82', fontSize: 15 }}>Loading dashboard...</p>
+    </div>
+  )
+
+  const inputStyle = {
+    width: '100%', padding: '10px 12px', border: '1px solid #ECECE8', borderRadius: 8,
+    fontSize: 14, fontFamily: 'inherit', color: '#1B1B1A', background: '#fff', outline: 'none', boxSizing: 'border-box', marginBottom: 8
+  }
 
   return (
-    <div style={{ fontFamily: 'sans-serif', backgroundColor: '#FFFBEB', minHeight: '100vh' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', fontFamily: '"Plus Jakarta Sans", "Geist", -apple-system, sans-serif', background: '#FAFAF7', WebkitFontSmoothing: 'antialiased' }}>
 
-      <div style={{ backgroundColor: '#1C1917', padding: '1.5rem 2rem' }}>
-        <h1 style={{ color: '#D97706', margin: 0, fontSize: '20px' }}>{spaces[0]?.name || 'My Study Room'}</h1>
-        <p style={{ color: '#78716C', margin: '4px 0 0', fontSize: '13px' }}>Owner Dashboard</p>
-      </div>
+      {/* Sidebar */}
+      <Sidebar active={page} onNav={setPage} ownerName={ownerName} />
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', padding: '1.5rem 2rem' }}>
-        <div style={{ background: '#D97706', borderRadius: '12px', padding: '1rem', color: 'white' }}>
-          <div style={{ fontSize: '28px', fontWeight: '800' }}>{spaces[0]?.totalSeats || 0}</div>
-          <div style={{ fontSize: '12px', opacity: 0.8 }}>Total Seats</div>
-        </div>
-        <div style={{ background: '#D97706', borderRadius: '12px', padding: '1rem', color: 'white' }}>
-          <div style={{ fontSize: '28px', fontWeight: '800' }}>{activeSubscriptions.length}</div>
-          <div style={{ fontSize: '12px', opacity: 0.8 }}>Active Students</div>
-        </div>
-        <div style={{ background: unpaidSubscriptions.length > 0 ? '#DC2626' : '#D97706', borderRadius: '12px', padding: '1rem', color: 'white' }}>
-          <div style={{ fontSize: '28px', fontWeight: '800' }}>{unpaidSubscriptions.length}</div>
-          <div style={{ fontSize: '12px', opacity: 0.8 }}>Unpaid</div>
-        </div>
-      </div>
+      {/* Main content */}
+      <main style={{ flex: 1, padding: '28px 36px', overflowY: 'auto', minWidth: 0 }}>
 
-      <div style={{ display: 'flex', padding: '0 2rem', borderBottom: '1px solid #E5E3DC' }}>
-        {['dashboard', 'students', 'unpaid', 'expiry'].map(tab => (
-          <button key={tab} onClick={() => setActiveTab(tab)} style={{ padding: '10px 20px', border: 'none', background: 'none', fontWeight: activeTab === tab ? '700' : '400', color: activeTab === tab ? '#D97706' : '#78716C', borderBottom: activeTab === tab ? '2px solid #D97706' : '2px solid transparent', cursor: 'pointer', fontSize: '14px', textTransform: 'capitalize' }}>
-            {tab}
-          </button>
-        ))}
-      </div>
-
-      <div style={{ padding: '1.5rem 2rem' }}>
-
-        {activeTab === 'dashboard' && (
+        {/* ─── DASHBOARD ─── */}
+        {page === 'dashboard' && (
           <div>
-            <button onClick={() => setShowAddStudent(!showAddStudent)} style={{ background: '#D97706', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 20px', fontWeight: '600', cursor: 'pointer', marginBottom: '1rem', fontSize: '14px' }}>
-              {showAddStudent ? 'Cancel' : '+ Add Student'}
-            </button>
-            {showAddStudent && (
-              <div style={{ background: '#FFFBEB', border: '1px solid #FAC775', borderRadius: '12px', padding: '1.5rem', marginBottom: '1.5rem' }}>
-                <h3 style={{ margin: '0 0 1rem', fontSize: '15px', color: '#1C1917' }}>Add New Student</h3>
-                <input placeholder="Student phone number *" value={newStudentPhone} onChange={e => setNewStudentPhone(e.target.value)} style={{ width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '8px', border: '1px solid #E5E3DC', boxSizing: 'border-box', fontSize: '14px' }} />
-                <input placeholder="Student name (optional)" value={newStudentName} onChange={e => setNewStudentName(e.target.value)} style={{ width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '8px', border: '1px solid #E5E3DC', boxSizing: 'border-box', fontSize: '14px' }} />
-                <input placeholder="Seat number (e.g. A12)" value={newSeatNumber} onChange={e => setNewSeatNumber(e.target.value)} style={{ width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '8px', border: '1px solid #E5E3DC', boxSizing: 'border-box', fontSize: '14px' }} />
-                <input placeholder="Monthly fee (₹)" value={newMonthlyFee} onChange={e => setNewMonthlyFee(e.target.value)} style={{ width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '8px', border: '1px solid #E5E3DC', boxSizing: 'border-box', fontSize: '14px' }} />
-                <input type="date" value={newValidFrom} onChange={e => setNewValidFrom(e.target.value)} style={{ width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '8px', border: '1px solid #E5E3DC', boxSizing: 'border-box', fontSize: '14px' }} />
-                <input type="date" value={newValidTill} onChange={e => setNewValidTill(e.target.value)} style={{ width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '8px', border: '1px solid #E5E3DC', boxSizing: 'border-box', fontSize: '14px' }} />
-                <select value={newPaymentStatus} onChange={e => setNewPaymentStatus(e.target.value)} style={{ width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '8px', border: '1px solid #E5E3DC', boxSizing: 'border-box', fontSize: '14px' }}>
+            <header style={{ marginBottom: 24 }}>
+              <h1 style={pg.h1}>Dashboard</h1>
+              <p style={pg.sub}>Overview of {spaces[0]?.name || 'your study room'}</p>
+            </header>
+
+            <div style={pg.statsGrid}>
+              <StatCard label="Active students" value={activeSubscriptions.length} sub={`of ${spaces[0]?.totalSeats || 0} seats`} />
+              <StatCard label="Total revenue" value={`₹${totalRevenue.toLocaleString('en-IN')}`} sub={`₹${paidRevenue.toLocaleString('en-IN')} collected`} />
+              <StatCard label="Occupancy rate" value={`${occupancyRate}%`} sub="Seats filled" />
+            </div>
+
+            {/* Add student */}
+            <div style={{ marginBottom: 24 }}>
+              <button onClick={() => setShowAdd(!showAdd)} style={{
+                padding: '10px 18px', borderRadius: 10, border: 'none', cursor: 'pointer',
+                background: '#FFC529', color: '#1B1B1A', fontWeight: 700, fontSize: 14, fontFamily: 'inherit'
+              }}>{showAdd ? 'Cancel' : '+ Add student'}</button>
+            </div>
+
+            {showAdd && (
+              <div style={{ background: '#fff', border: '1px solid #ECECE8', borderRadius: 12, padding: 20, marginBottom: 24 }}>
+                <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 14px', color: '#1B1B1A' }}>Add new student</h3>
+                <input placeholder="Phone number *" value={newPhone} onChange={e => setNewPhone(e.target.value)} style={inputStyle} />
+                <input placeholder="Student name (optional)" value={newName} onChange={e => setNewName(e.target.value)} style={inputStyle} />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <input placeholder="Seat (e.g. A12)" value={newSeat} onChange={e => setNewSeat(e.target.value)} style={inputStyle} />
+                  <input placeholder="Monthly fee (₹)" value={newFee} onChange={e => setNewFee(e.target.value)} style={inputStyle} />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <input type="date" value={newFrom} onChange={e => setNewFrom(e.target.value)} style={inputStyle} />
+                  <input type="date" value={newTill} onChange={e => setNewTill(e.target.value)} style={inputStyle} />
+                </div>
+                <select value={newPayment} onChange={e => setNewPayment(e.target.value)} style={inputStyle}>
                   <option value="unpaid">Unpaid</option>
                   <option value="paid">Paid</option>
                 </select>
-                {addError && <p style={{ color: '#DC2626', fontSize: '13px', margin: '0 0 10px' }}>{addError}</p>}
-                <button onClick={addStudent} style={{ width: '100%', padding: '12px', background: '#1C1917', color: '#FAEEDA', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', fontSize: '14px' }}>
-                  Confirm & Add Student
-                </button>
+                {addError && <p style={{ color: '#DC2626', fontSize: 13, margin: '0 0 8px' }}>{addError}</p>}
+                <button onClick={addStudent} style={{
+                  width: '100%', padding: 12, borderRadius: 10, border: 'none', cursor: 'pointer',
+                  background: '#1B1B1A', color: '#FFC529', fontWeight: 700, fontSize: 14, fontFamily: 'inherit'
+                }}>Confirm & add student</button>
               </div>
             )}
-            <h2 style={{ fontSize: '16px', color: '#1C1917', marginTop: 0 }}>Recent Students</h2>
-            {subscriptions.slice(0, 3).map(sub => {
-              const student = students.find(s => s.id === sub.studentId)
-              return (
-                <div key={sub.id} style={{ background: 'white', border: '1px solid #E5E3DC', borderRadius: '10px', padding: '1rem', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <div style={{ fontWeight: '600', color: '#1C1917' }}>{student?.name || 'Unknown'}</div>
-                    <div style={{ fontSize: '12px', color: '#78716C' }}>Seat {sub.seatNumber} · Valid till {sub.validTill}</div>
-                  </div>
-                  <span style={{ background: sub.paymentStatus === 'paid' ? '#DCFCE7' : '#FEF2F2', color: sub.paymentStatus === 'paid' ? '#16A34A' : '#DC2626', padding: '2px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '600' }}>
-                    {sub.paymentStatus}
-                  </span>
-                </div>
-              )
-            })}
+
+            {/* Recent students table */}
+            <section>
+              <div style={pg.sectionHead}>
+                <h2 style={pg.h2}>Recent students</h2>
+                <span style={pg.muted}>{subscriptions.length} total</span>
+              </div>
+              <div style={tbl.wrap}>
+                <table style={tbl.table}>
+                  <thead>
+                    <tr>
+                      <th style={tbl.th}>Student</th>
+                      <th style={tbl.th}>Seat</th>
+                      <th style={tbl.th}>Fee</th>
+                      <th style={tbl.th}>Valid till</th>
+                      <th style={tbl.th}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {subscriptions.slice(0, 7).map(sub => {
+                      const student = students.find(s => s.id === sub.studentId)
+                      return (
+                        <tr key={sub.id} style={tbl.tr}>
+                          <td style={tbl.tdName}>{student?.name || 'Unknown'}</td>
+                          <td style={tbl.td}>{sub.seatNumber}</td>
+                          <td style={tbl.td}>₹{sub.monthlyFee}</td>
+                          <td style={tbl.td}>{sub.validTill}</td>
+                          <td style={tbl.td}><StatusPill status={sub.paymentStatus} /></td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
           </div>
         )}
 
-        {activeTab === 'students' && (
+        {/* ─── STUDENTS ─── */}
+        {page === 'students' && (
           <div>
-            <h2 style={{ fontSize: '16px', color: '#1C1917', marginTop: 0 }}>All Students ({subscriptions.length})</h2>
-            {subscriptions.map(sub => {
-              const student = students.find(s => s.id === sub.studentId)
-              return (
-                <div key={sub.id} style={{ background: 'white', border: '1px solid #E5E3DC', borderRadius: '10px', padding: '1rem', marginBottom: '10px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                      <div style={{ fontWeight: '600', color: '#1C1917' }}>{student?.name || 'Unknown'}</div>
-                      <div style={{ fontSize: '12px', color: '#78716C' }}>📞 {student?.phone}</div>
-                      <div style={{ fontSize: '12px', color: '#78716C' }}>🪑 Seat {sub.seatNumber}</div>
-                      <div style={{ fontSize: '12px', color: '#78716C' }}>Valid: {sub.validFrom} to {sub.validTill}</div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <span style={{ background: sub.paymentStatus === 'paid' ? '#DCFCE7' : '#FEF2F2', color: sub.paymentStatus === 'paid' ? '#16A34A' : '#DC2626', padding: '2px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
-                        {sub.paymentStatus}
-                      </span>
-                      <div style={{ fontSize: '12px', color: '#D97706', fontWeight: '600' }}>₹{sub.monthlyFee}/mo</div>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
+            <header style={{ marginBottom: 24 }}>
+              <h1 style={pg.h1}>Students</h1>
+              <p style={pg.sub}>All students in your study room</p>
+            </header>
+            <div style={tbl.wrap}>
+              <table style={tbl.table}>
+                <thead>
+                  <tr>
+                    <th style={tbl.th}>Student</th>
+                    <th style={tbl.th}>Phone</th>
+                    <th style={tbl.th}>Seat</th>
+                    <th style={tbl.th}>Fee</th>
+                    <th style={tbl.th}>Valid</th>
+                    <th style={tbl.th}>Status</th>
+                    <th style={tbl.th}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {subscriptions.map(sub => {
+                    const student = students.find(s => s.id === sub.studentId)
+                    return (
+                      <tr key={sub.id} style={tbl.tr}>
+                        <td style={tbl.tdName}>{student?.name || 'Unknown'}</td>
+                        <td style={tbl.td}>{student?.phone}</td>
+                        <td style={tbl.td}>{sub.seatNumber}</td>
+                        <td style={tbl.td}>₹{sub.monthlyFee}/mo</td>
+                        <td style={tbl.td}>{sub.validFrom} → {sub.validTill}</td>
+                        <td style={tbl.td}><StatusPill status={sub.paymentStatus} /></td>
+                        <td style={{ ...tbl.td, textAlign: 'right' }}>
+                          {student && (
+                            <a href={waLink(student, `Hi ${student.name}, regarding your BeePod membership.`)}
+                              target="_blank" rel="noreferrer"
+                              style={tbl.msgBtn}>✉ Message</a>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
-        {activeTab === 'unpaid' && (
+        {/* ─── UNPAID ─── */}
+        {page === 'unpaid' && (
           <div>
-            <h2 style={{ fontSize: '16px', color: '#1C1917', marginTop: 0 }}>Unpaid Students ({unpaidSubscriptions.length})</h2>
+            <header style={{ marginBottom: 24 }}>
+              <h1 style={pg.h1}>Unpaid</h1>
+              <p style={pg.sub}>{unpaidSubscriptions.length} student{unpaidSubscriptions.length !== 1 ? 's' : ''} with pending payments</p>
+            </header>
             {unpaidSubscriptions.length === 0 ? (
-              <p style={{ color: '#16A34A', fontWeight: '600' }}>All students have paid!</p>
-            ) : unpaidSubscriptions.map(sub => {
-              const student = students.find(s => s.id === sub.studentId)
-              return (
-                <div key={sub.id} style={{ background: 'white', border: '1px solid #FECACA', borderRadius: '10px', padding: '1rem', marginBottom: '10px' }}>
-                  <div style={{ fontWeight: '600', color: '#1C1917' }}>{student?.name || 'Unknown'}</div>
-                  <div style={{ fontSize: '12px', color: '#78716C' }}>📞 {student?.phone}</div>
-                  <div style={{ fontSize: '12px', color: '#78716C' }}>🪑 Seat {sub.seatNumber} · ₹{sub.monthlyFee}/mo</div>
-                  {student && (
-                    <a href={waLink(student, `Hi ${student.name}, your Beepod membership fee of ₹${sub.monthlyFee} is pending. Please pay to keep your seat.`)} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: '8px', background: '#25D366', color: 'white', padding: '6px 14px', borderRadius: '8px', textDecoration: 'none', fontSize: '13px', fontWeight: '600' }}>
-                      WhatsApp Reminder
-                    </a>
-                  )}
-                </div>
-              )
-            })}
+              <div style={pg.empty}>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>✓</div>
+                <div style={pg.emptyTitle}>All payments collected</div>
+                <div style={pg.emptyBody}>Every student has paid their dues. Nice work!</div>
+              </div>
+            ) : (
+              <div style={tbl.wrap}>
+                <table style={tbl.table}>
+                  <thead>
+                    <tr>
+                      <th style={tbl.th}>Student</th>
+                      <th style={tbl.th}>Phone</th>
+                      <th style={tbl.th}>Seat</th>
+                      <th style={tbl.th}>Fee due</th>
+                      <th style={tbl.th}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {unpaidSubscriptions.map(sub => {
+                      const student = students.find(s => s.id === sub.studentId)
+                      return (
+                        <tr key={sub.id} style={tbl.tr}>
+                          <td style={tbl.tdName}>{student?.name || 'Unknown'}</td>
+                          <td style={tbl.td}>{student?.phone}</td>
+                          <td style={tbl.td}>{sub.seatNumber}</td>
+                          <td style={{ ...tbl.td, color: '#DC2626', fontWeight: 600 }}>₹{sub.monthlyFee}</td>
+                          <td style={{ ...tbl.td, textAlign: 'right' }}>
+                            {student && (
+                              <a href={waLink(student, `Hi ${student.name}, your BeePod membership fee of ₹${sub.monthlyFee} is pending. Please pay to keep your seat.`)}
+                                target="_blank" rel="noreferrer"
+                                style={{ ...tbl.msgBtn, background: '#25D366', color: '#fff', borderColor: '#25D366' }}>
+                                WhatsApp reminder
+                              </a>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 
-        {activeTab === 'expiry' && (
+        {/* ─── EXPIRY ─── */}
+        {page === 'expiry' && (
           <div>
-            <h2 style={{ fontSize: '16px', color: '#1C1917', marginTop: 0 }}>Expiry Dashboard</h2>
+            <header style={{ marginBottom: 24 }}>
+              <h1 style={pg.h1}>Expiry tracker</h1>
+              <p style={pg.sub}>Monitor membership validity</p>
+            </header>
 
-            <div style={{ background: '#FFF7ED', border: '1px solid #FAC775', borderRadius: '10px', padding: '1rem', marginBottom: '1rem' }}>
-              <h3 style={{ fontSize: '14px', color: '#92400E', margin: '0 0 10px' }}>⚠️ Expiring This Week</h3>
-              {(() => {
-                const expiring = subscriptions.filter(sub => {
-                  const validTill = new Date(sub.validTill)
-                  const today = new Date()
-                  const sevenDays = new Date()
-                  sevenDays.setDate(today.getDate() + 7)
-                  return validTill >= today && validTill <= sevenDays
-                })
-                return expiring.length === 0 ? (
-                  <p style={{ fontSize: '13px', color: '#78716C', margin: 0 }}>No memberships expiring this week</p>
-                ) : expiring.map(sub => {
-                  const student = students.find(s => s.id === sub.studentId)
-                  return (
-                    <div key={sub.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #FAC775' }}>
-                      <div>
-                        <div style={{ fontWeight: '600', color: '#1C1917', fontSize: '14px' }}>{student?.name}</div>
-                        <div style={{ fontSize: '12px', color: '#78716C' }}>Expires: {sub.validTill}</div>
-                      </div>
-                      {student && (
-                        <a href={waLink(student, `Hi ${student.name}, your Beepod membership expires on ${sub.validTill}. Please renew to keep your seat.`)} target="_blank" rel="noreferrer" style={{ background: '#25D366', color: 'white', padding: '6px 12px', borderRadius: '8px', textDecoration: 'none', fontSize: '12px', fontWeight: '600' }}>
-                          WhatsApp
-                        </a>
-                      )}
-                    </div>
-                  )
-                })
-              })()}
-            </div>
+            {/* Expiring this week */}
+            {(() => {
+              const now = new Date()
+              const week = new Date(); week.setDate(now.getDate() + 7)
+              const expiring = subscriptions.filter(s => {
+                const t = new Date(s.validTill)
+                return t >= now && t <= week
+              })
+              const expired = subscriptions.filter(s => new Date(s.validTill) < now)
+              const active = subscriptions.filter(s => new Date(s.validTill) >= now)
 
-            <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '10px', padding: '1rem', marginBottom: '1rem' }}>
-              <h3 style={{ fontSize: '14px', color: '#DC2626', margin: '0 0 10px' }}>❌ Expired</h3>
-              {(() => {
-                const expired = subscriptions.filter(sub => new Date(sub.validTill) < new Date())
-                return expired.length === 0 ? (
-                  <p style={{ fontSize: '13px', color: '#78716C', margin: 0 }}>No expired memberships</p>
-                ) : expired.map(sub => {
-                  const student = students.find(s => s.id === sub.studentId)
-                  return (
-                    <div key={sub.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #FECACA' }}>
-                      <div>
-                        <div style={{ fontWeight: '600', color: '#1C1917', fontSize: '14px' }}>{student?.name}</div>
-                        <div style={{ fontSize: '12px', color: '#78716C' }}>Expired: {sub.validTill}</div>
-                      </div>
-                      {student && (
-                        <a href={waLink(student, `Hi ${student.name}, your Beepod membership has expired. Please renew to continue.`)} target="_blank" rel="noreferrer" style={{ background: '#25D366', color: 'white', padding: '6px 12px', borderRadius: '8px', textDecoration: 'none', fontSize: '12px', fontWeight: '600' }}>
-                          WhatsApp
-                        </a>
-                      )}
-                    </div>
-                  )
-                })
-              })()}
-            </div>
-
-            <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: '10px', padding: '1rem' }}>
-              <h3 style={{ fontSize: '14px', color: '#16A34A', margin: '0 0 10px' }}>✅ Active</h3>
-              {subscriptions.filter(sub => new Date(sub.validTill) >= new Date()).map(sub => {
-                const student = students.find(s => s.id === sub.studentId)
-                return (
-                  <div key={sub.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #BBF7D0' }}>
-                    <div>
-                      <div style={{ fontWeight: '600', color: '#1C1917', fontSize: '14px' }}>{student?.name}</div>
-                      <div style={{ fontSize: '12px', color: '#78716C' }}>Valid till: {sub.validTill}</div>
-                    </div>
-                    <span style={{ fontSize: '11px', background: '#DCFCE7', color: '#16A34A', padding: '3px 8px', borderRadius: '6px', fontWeight: '600' }}>Active</span>
+              return (
+                <>
+                  <div style={pg.statsGrid}>
+                    <StatCard label="Expiring this week" value={expiring.length} sub="Need attention" />
+                    <StatCard label="Expired" value={expired.length} sub="Memberships ended" />
+                    <StatCard label="Active" value={active.length} sub="Currently valid" />
                   </div>
-                )
-              })}
-            </div>
 
+                  {expiring.length > 0 && (
+                    <section style={{ marginBottom: 24 }}>
+                      <h2 style={pg.h2}>⚠ Expiring this week</h2>
+                      <div style={{ ...tbl.wrap, marginTop: 12, borderColor: '#FDE68A' }}>
+                        <table style={tbl.table}>
+                          <thead><tr><th style={tbl.th}>Student</th><th style={tbl.th}>Expires</th><th style={tbl.th}></th></tr></thead>
+                          <tbody>
+                            {expiring.map(sub => {
+                              const student = students.find(s => s.id === sub.studentId)
+                              return (
+                                <tr key={sub.id} style={tbl.tr}>
+                                  <td style={tbl.tdName}>{student?.name}</td>
+                                  <td style={tbl.td}>{sub.validTill}</td>
+                                  <td style={{ ...tbl.td, textAlign: 'right' }}>
+                                    {student && <a href={waLink(student, `Hi ${student.name}, your BeePod membership expires on ${sub.validTill}. Please renew to keep your seat.`)} target="_blank" rel="noreferrer" style={{ ...tbl.msgBtn, background: '#25D366', color: '#fff', borderColor: '#25D366' }}>WhatsApp</a>}
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  )}
+
+                  {expired.length > 0 && (
+                    <section>
+                      <h2 style={pg.h2}>❌ Expired</h2>
+                      <div style={{ ...tbl.wrap, marginTop: 12 }}>
+                        <table style={tbl.table}>
+                          <thead><tr><th style={tbl.th}>Student</th><th style={tbl.th}>Expired on</th><th style={tbl.th}></th></tr></thead>
+                          <tbody>
+                            {expired.map(sub => {
+                              const student = students.find(s => s.id === sub.studentId)
+                              return (
+                                <tr key={sub.id} style={tbl.tr}>
+                                  <td style={tbl.tdName}>{student?.name}</td>
+                                  <td style={{ ...tbl.td, color: '#DC2626' }}>{sub.validTill}</td>
+                                  <td style={{ ...tbl.td, textAlign: 'right' }}>
+                                    {student && <a href={waLink(student, `Hi ${student.name}, your BeePod membership has expired. Please renew to continue.`)} target="_blank" rel="noreferrer" style={tbl.msgBtn}>WhatsApp</a>}
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  )}
+                </>
+              )
+            })()}
           </div>
         )}
 
-      </div>
+        {/* ─── EARNINGS ─── */}
+        {page === 'earnings' && (
+          <div>
+            <header style={{ marginBottom: 24 }}>
+              <h1 style={pg.h1}>Earnings</h1>
+              <p style={pg.sub}>Revenue overview for your study rooms</p>
+            </header>
+
+            <div style={pg.statsGrid}>
+              <StatCard label="Total revenue" value={`₹${totalRevenue.toLocaleString('en-IN')}`} sub="All subscriptions" />
+              <StatCard label="Collected" value={`₹${paidRevenue.toLocaleString('en-IN')}`} sub={`${Math.round((paidRevenue / (totalRevenue || 1)) * 100)}% collection rate`} />
+              <StatCard label="Pending" value={`₹${(totalRevenue - paidRevenue).toLocaleString('en-IN')}`} sub={`${unpaidSubscriptions.length} unpaid students`} />
+            </div>
+
+            <section style={{ marginBottom: 28 }}>
+              <div style={pg.sectionHead}>
+                <h2 style={pg.h2}>Revenue — last 30 days</h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#1B6B36' }} />
+                  <span style={{ fontSize: 12, color: '#5A5A55' }}>Daily revenue</span>
+                </div>
+              </div>
+              <div style={{
+                background: '#fff', border: '1px solid #ECECE8', borderRadius: 12, padding: '20px 22px'
+              }}>
+                <RevenueChart subscriptions={subscriptions} />
+              </div>
+            </section>
+
+            <section>
+              <div style={pg.sectionHead}>
+                <h2 style={pg.h2}>All subscriptions</h2>
+                <span style={pg.muted}>{subscriptions.length} total</span>
+              </div>
+              <div style={tbl.wrap}>
+                <table style={tbl.table}>
+                  <thead>
+                    <tr>
+                      <th style={tbl.th}>Student</th>
+                      <th style={tbl.th}>Monthly fee</th>
+                      <th style={tbl.th}>Valid till</th>
+                      <th style={tbl.th}>Payment</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {subscriptions.map(sub => {
+                      const student = students.find(s => s.id === sub.studentId)
+                      return (
+                        <tr key={sub.id} style={tbl.tr}>
+                          <td style={tbl.tdName}>{student?.name || 'Unknown'}</td>
+                          <td style={tbl.td}>₹{sub.monthlyFee}</td>
+                          <td style={tbl.td}>{sub.validTill}</td>
+                          <td style={tbl.td}><StatusPill status={sub.paymentStatus} /></td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        )}
+
+      </main>
     </div>
   )
+}
+
+// ── Styles ─────────────────
+
+const sb = {
+  aside: {
+    width: 240, background: '#fff', borderRight: '1px solid #ECECE8',
+    display: 'flex', flexDirection: 'column', padding: '20px 0',
+    position: 'sticky', top: 0, height: '100vh',
+    fontFamily: 'inherit'
+  },
+  brand: {
+    display: 'flex', alignItems: 'center', gap: 10,
+    padding: '0 20px', marginBottom: 28
+  },
+  logoMark: {
+    width: 32, height: 32, borderRadius: 8,
+    background: '#1B1B1A', color: '#FFC529',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontWeight: 800, fontSize: 16
+  },
+  brandText: { fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', color: '#1B1B1A' },
+  nav: { flex: 1, display: 'flex', flexDirection: 'column', gap: 2, padding: '0 10px' },
+  navItem: {
+    display: 'flex', alignItems: 'center', gap: 10,
+    padding: '10px 12px', borderRadius: 8, border: 'none',
+    background: 'transparent', cursor: 'pointer', fontFamily: 'inherit',
+    fontSize: 14, fontWeight: 500, color: '#5A5A55',
+    transition: 'background 0.12s'
+  },
+  navItemActive: { background: '#FFF4CC', color: '#1B1B1A', fontWeight: 600 },
+  navIcon: { fontSize: 16, width: 20, textAlign: 'center' },
+  owner: {
+    display: 'flex', alignItems: 'center', gap: 10,
+    padding: '14px 20px', borderTop: '1px solid #ECECE8', marginTop: 'auto'
+  },
+  avatar: {
+    width: 32, height: 32, borderRadius: '50%',
+    background: '#1B1B1A', color: '#FFC529',
+    fontSize: 12, fontWeight: 700,
+    display: 'flex', alignItems: 'center', justifyContent: 'center'
+  },
+  ownerName: { fontSize: 13, fontWeight: 600, color: '#1B1B1A' },
+  ownerSub: { fontSize: 12, color: '#8A8A82' }
+}
+
+const card = {
+  card: { background: '#fff', border: '1px solid #ECECE8', borderRadius: 12, padding: '20px 22px' },
+  label: { fontSize: 13, color: '#6F6F69', fontWeight: 500 },
+  value: { fontSize: 32, fontWeight: 700, margin: '10px 0 6px', letterSpacing: '-0.02em', color: '#1B1B1A' },
+  sub: { fontSize: 12, color: '#8A8A82' }
+}
+
+const pill = {
+  base: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, fontSize: 12, fontWeight: 500 },
+  dot: { width: 6, height: 6, borderRadius: '50%' }
+}
+
+const pg = {
+  h1: { fontSize: 28, fontWeight: 700, margin: 0, letterSpacing: '-0.02em', color: '#1B1B1A' },
+  sub: { color: '#6F6F69', fontSize: 14, margin: '6px 0 0' },
+  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 32 },
+  sectionHead: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 },
+  h2: { fontSize: 18, fontWeight: 600, margin: 0, color: '#1B1B1A' },
+  muted: { color: '#8A8A82', fontSize: 13 },
+  empty: {
+    border: '1px dashed #DCDCD6', borderRadius: 12, padding: '48px 24px',
+    background: '#fff', textAlign: 'center'
+  },
+  emptyTitle: { fontSize: 16, fontWeight: 600, marginBottom: 6, color: '#1B1B1A' },
+  emptyBody: { fontSize: 14, color: '#6F6F69', maxWidth: 420, margin: '0 auto' }
+}
+
+const tbl = {
+  wrap: { background: '#fff', border: '1px solid #ECECE8', borderRadius: 12, overflow: 'hidden' },
+  table: { width: '100%', borderCollapse: 'collapse', fontSize: 14 },
+  th: {
+    textAlign: 'left', padding: '12px 18px', fontSize: 12, fontWeight: 600,
+    color: '#6F6F69', textTransform: 'uppercase', letterSpacing: '0.04em',
+    background: '#FAFAF7', borderBottom: '1px solid #ECECE8'
+  },
+  tr: { borderBottom: '1px solid #F1F1ED' },
+  td: { padding: '14px 18px', color: '#3A3A36' },
+  tdName: { padding: '14px 18px', fontWeight: 600, color: '#1B1B1A' },
+  msgBtn: {
+    display: 'inline-flex', alignItems: 'center', gap: 6,
+    padding: '6px 12px', border: '1px solid #ECECE8', background: '#fff',
+    borderRadius: 8, fontSize: 13, fontWeight: 500, color: '#1B1B1A',
+    cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'none'
+  }
 }
 
 export default OwnerDashboard
