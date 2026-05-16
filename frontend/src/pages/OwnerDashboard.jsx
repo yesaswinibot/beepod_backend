@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import AttendancePanel from './AttendancePanel'
 
 const API = 'https://beepodbackend-production.up.railway.app'
 
@@ -22,6 +23,11 @@ function Sidebar({ active, onNav, ownerName }) {
         <span style={sb.brandText}>BeePod</span>
       </div>
       <nav style={sb.nav}>
+        <button key="attendance" onClick={() => onNav('attendance')}
+          style={{ ...sb.navItem, ...(active === 'attendance' ? sb.navItemActive : {}) }}>
+          <span style={sb.navIcon}>◎</span>
+          <span>Attendance</span>
+        </button>
         {NAV.map(item => (
           <button key={item.id} onClick={() => onNav(item.id)}
             style={{ ...sb.navItem, ...(active === item.id ? sb.navItemActive : {}) }}>
@@ -211,6 +217,15 @@ function OwnerDashboard() {
 
       {/* Main content */}
       <main style={{ flex: 1, padding: '28px 36px', overflowY: 'auto', minWidth: 0 }}>
+          {page === 'attendance' && (
+  <div>
+    <header style={{ marginBottom: 24 }}>
+      <h1 style={pg.h1}>Attendance</h1>
+      <p style={pg.sub}>QR check-in for {spaces[0]?.name || 'your study room'}</p>
+    </header>
+    <AttendancePanel spaceId={spaces[0]?.id} spaceName={spaces[0]?.name} students={students} />
+  </div>
+)}
 
         {/* ─── DASHBOARD ─── */}
         {page === 'dashboard' && (

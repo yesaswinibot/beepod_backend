@@ -8,7 +8,7 @@ import Login from './pages/Login'
 import StudentRadar from './pages/StudentRadar'
 import AdminPanel from './pages/AdminPanel'
 import SpaceRegistration from './pages/SpaceRegistration'
-
+import CheckIn from './pages/CheckIn'
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token'))
   const [role, setRole] = useState(localStorage.getItem('role'))
@@ -73,6 +73,7 @@ function App() {
             ? <AppShell role={role} name={name} onLogout={handleLogout}><AdminPanel /></AppShell>
             : <Navigate to="/" />
         } />
+        <Route path="/checkin/:spaceId" element={<CheckIn />} />
       </Routes>
     </BrowserRouter>
   )
