@@ -10,6 +10,7 @@ const NAV = [
   { id: 'unpaid', label: 'Unpaid', icon: '₹' },
   { id: 'expiry', label: 'Expiry', icon: '▤' },
   { id: 'earnings', label: 'Earnings', icon: '◈' },
+  { id: 'attendance', label: 'Attendance', icon: '◎' },
 ]
 
 // ── Reusable components ─────────────────
