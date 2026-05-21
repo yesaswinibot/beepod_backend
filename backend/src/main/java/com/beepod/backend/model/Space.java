@@ -37,6 +37,8 @@ public class Space {
 
     @Column(name = "owner_id")
     private Long ownerId;
+    @Column(columnDefinition = "TEXT")
+    private String photos;
 
     @Transient
     private Double distance;
@@ -85,6 +87,13 @@ public class Space {
 
     public Long getOwnerId() { return ownerId; }
     public void setOwnerId(Long ownerId) { this.ownerId = ownerId; }
+    
+    public String getphotos(){
+        return photos;
+    }
+    public void setphotos(String photos){
+         this.photos=photos;
+    }
 
     public Double getDistance() { return distance; }
     public void setDistance(Double distance) { this.distance = distance; }
