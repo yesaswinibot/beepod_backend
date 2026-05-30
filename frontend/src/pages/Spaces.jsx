@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 
-const API = 'https://beepodbackend-production.up.railway.app'
+const API = 'http://52.66.199.64:8080'
 
 const C = {
   ink: '#0F0E0C', paper: '#FBF7EE', paper2: '#F4EBD6',

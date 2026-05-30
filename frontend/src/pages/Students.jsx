@@ -12,8 +12,8 @@ function Students() {
 
   async function loadData() {
     const [spacesData, subsData] = await Promise.all([
-      fetch('https://beepodbackend-production.up.railway.app/api/spaces').then(r => r.json()),
-      fetch('https://beepodbackend-production.up.railway.app/api/subscriptions').then(r => r.json())
+      fetch('http://52.66.199.64:8080/api/spaces').then(r => r.json()),
+      fetch('http://52.66.199.64:8080/api/subscriptions').then(r => r.json())
     ])
     setSpaces(spacesData)
     setSubscriptions(subsData)

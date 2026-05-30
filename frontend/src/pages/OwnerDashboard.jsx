@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import AttendancePanel from './AttendancePanel'
 
-const API = 'https://beepodbackend-production.up.railway.app'
+const API = 'http://52.66.199.64:8080'
 
 // ── Sidebar nav items ─────────────────
 const NAV = [
