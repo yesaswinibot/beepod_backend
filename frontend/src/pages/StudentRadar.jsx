@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { GoogleMap, useJsApiLoader, MarkerF, InfoWindowF } from '@react-google-maps/api'
 
-const API = 'http://52.66.199.64:8080'
+const API = ''
 const MAPS_KEY = 'AIzaSyAUjGGEBgLhtzSwk9bNbpCf9F6vWsfFdyw'
 
 function haversineKm(lat1, lng1, lat2, lng2) {

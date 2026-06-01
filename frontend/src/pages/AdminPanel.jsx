@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 
-const API = 'http://52.66.199.64:8080'
+const API = ''
 
 function AdminPanel() {
   const [pending, setPending] = useState([])

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 
-const API = 'http://52.66.199.64:8080'
+const API = ''
 
 function AttendancePanel({ spaceId, spaceName, students }) {
   const [todayList, setTodayList] = useState([])

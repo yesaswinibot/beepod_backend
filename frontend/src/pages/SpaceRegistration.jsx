@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-const API = 'http://52.66.199.64:8080'
+const API = ''
 const CLOUD_NAME = 'dodjtjnls'
 const UPLOAD_PRESET = 'ml_default'
 
