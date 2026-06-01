@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 're
 import { auth } from '../firebase'
 import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth'
 
-const API = 'https://beepodbackend-production.up.railway.app'
+const API = 'http://52.66.199.64:8080'
 
 // ── color tokens ─────────────────────────────────
 const HONEY = '#F5B324'
