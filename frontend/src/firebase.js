@@ -3,7 +3,7 @@ import { getAuth } from "firebase/auth"
 
 const firebaseConfig = {
   apiKey: "AIzaSyCm2Sqf2p6jHrm0kdlGA9jgxw1C3o1VFZs",
-  authDomain: "beepod-9d22f.firebaseapp.com",
+  authDomain: "beepod.in"
   projectId: "beepod-9d22f",
   storageBucket: "beepod-9d22f.firebasestorage.app",
   messagingSenderId: "337373620354",
